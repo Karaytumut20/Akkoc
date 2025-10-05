@@ -1,136 +1,144 @@
-'use client'
-import React, { useState } from "react";
-import { assets } from "@/assets/assets";
-import Image from "next/image";
+'use client';
 
-const AddProduct = () => {
+import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabaseClient';
 
-  const [files, setFiles] = useState([]);
+export default function Home() {
+  const [user, setUser] = useState(null);
+
+  // Login bilgileri
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  // Ürün bilgileri
+  const [files, setFiles] = useState([null, null, null, null, null, null]);
+  const [previews, setPreviews] = useState([]);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('Earphone');
   const [price, setPrice] = useState('');
-  const [offerPrice, setOfferPrice] = useState('');
+  const [category, setCategory] = useState('');
 
-  const handleSubmit = async (e) => {
+  // Oturum kontrolü
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      setUser(data.user);
+    };
+    checkUser();
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  // Dosya önizlemesi
+  useEffect(() => {
+    const urls = files.map(file => (file ? URL.createObjectURL(file) : null));
+    setPreviews(urls);
+
+    // Cleanup
+    return () => urls.forEach(url => url && URL.revokeObjectURL(url));
+  }, [files]);
+
+  // Giriş yapma
+  const handleLogin = async (e) => {
     e.preventDefault();
-
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return alert('Giriş hatası: ' + error.message);
   };
 
+  // Çıkış yapma
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+  };
+
+  // Ürün ekleme
+  const handleUpload = async () => {
+    if (!files.some(f => f) || !name || !description || !price || !category) {
+      return alert('Tüm alanları doldurun ve en az bir dosya seçin.');
+    }
+
+    try {
+      const imageUrls = [];
+
+      for (let file of files) {
+        if (!file) continue;
+        const fileName = `${Date.now()}_${file.name}`;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('product-images')
+          .upload(fileName, file, { cacheControl: '3600', upsert: false, contentType: file.type });
+
+        if (uploadError) throw new Error(uploadError.message);
+
+        const { data: publicUrlData } = supabase.storage
+          .from('product-images')
+          .getPublicUrl(fileName);
+
+        imageUrls.push(publicUrlData.publicUrl);
+      }
+
+      const { error: insertError } = await supabase
+        .from('products')
+        .insert([{ name, description, price: parseFloat(price), category, image_urls: imageUrls }]);
+
+      if (insertError) throw new Error(insertError.message);
+
+      alert('Ürün başarıyla eklendi!');
+      setFiles([null, null, null, null, null, null]);
+      setPreviews([]);
+      setName('');
+      setDescription('');
+      setPrice('');
+      setCategory('');
+    } catch (error) {
+      alert('Hata: ' + error.message);
+    }
+  };
+
+  if (!user) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center', marginTop: '60px', border: '1px solid #ccc', borderRadius: '10px', padding: '30px', maxWidth: '400px', marginInline: 'auto' }}>
+        <h2 style={{ fontSize: '20px', fontWeight: '600' }}>Giriş Yap</h2>
+        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
+          <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
+          <input type="password" placeholder="Şifre" value={password} onChange={e => setPassword(e.target.value)} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
+          <button type="submit" style={{ padding: '10px', backgroundColor: '#0070f3', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Giriş Yap</button>
+        </form>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex-1 min-h-screen flex flex-col justify-between">
-      <form onSubmit={handleSubmit} className="md:p-10 p-4 space-y-5 max-w-lg">
-        <div>
-          <p className="text-base font-medium">Product Image</p>
-          <div className="flex flex-wrap items-center gap-3 mt-2">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center', marginTop: '60px', border: '1px solid #ccc', borderRadius: '10px', padding: '30px', maxWidth: '600px', marginInline: 'auto' }}>
+      <h2 style={{ fontSize: '20px', fontWeight: '600' }}>Hoş geldin, {user.email}</h2>
 
-            {[...Array(4)].map((_, index) => (
-              <label key={index} htmlFor={`image${index}`}>
-                <input onChange={(e) => {
-                  const updatedFiles = [...files];
-                  updatedFiles[index] = e.target.files[0];
-                  setFiles(updatedFiles);
-                }} type="file" id={`image${index}`} hidden />
-                <Image
-                  key={index}
-                  className="max-w-24 cursor-pointer"
-                  src={files[index] ? URL.createObjectURL(files[index]) : assets.upload_area}
-                  alt=""
-                  width={100}
-                  height={100}
-                />
-              </label>
-            ))}
+      <input type="text" placeholder="Ürün Adı" value={name} onChange={e => setName(e.target.value)} style={{ border: '1px solid #ccc', borderRadius: '6px', padding: '8px', width: '100%' }} />
+      <textarea placeholder="Açıklama" value={description} onChange={e => setDescription(e.target.value)} style={{ border: '1px solid #ccc', borderRadius: '6px', padding: '8px', width: '100%' }} />
+      <input type="number" placeholder="Fiyat" value={price} onChange={e => setPrice(e.target.value)} style={{ border: '1px solid #ccc', borderRadius: '6px', padding: '8px', width: '100%' }} />
+      <input type="text" placeholder="Kategori" value={category} onChange={e => setCategory(e.target.value)} style={{ border: '1px solid #ccc', borderRadius: '6px', padding: '8px', width: '100%' }} />
 
-          </div>
-        </div>
-        <div className="flex flex-col gap-1 max-w-md">
-          <label className="text-base font-medium" htmlFor="product-name">
-            Product Name
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', width: '100%' }}>
+        {files.map((file, idx) => (
+          <label key={idx} style={{ border: '1px solid #ccc', borderRadius: '6px', padding: '0', width: '100%', aspectRatio: '1 / 1', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', overflow: 'hidden', backgroundColor: '#f5f5f5' }}>
+            {previews[idx] ? (
+              <img src={previews[idx]} alt={`preview-${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              <span style={{ color: '#999' }}>Seç</span>
+            )}
+            <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => {
+              const newFiles = [...files];
+              newFiles[idx] = e.target.files[0];
+              setFiles(newFiles);
+            }} />
           </label>
-          <input
-            id="product-name"
-            type="text"
-            placeholder="Type here"
-            className="outline-none md:py-2.5 py-2 px-3 rounded border border-gray-500/40"
-            onChange={(e) => setName(e.target.value)}
-            value={name}
-            required
-          />
-        </div>
-        <div className="flex flex-col gap-1 max-w-md">
-          <label
-            className="text-base font-medium"
-            htmlFor="product-description"
-          >
-            Product Description
-          </label>
-          <textarea
-            id="product-description"
-            rows={4}
-            className="outline-none md:py-2.5 py-2 px-3 rounded border border-gray-500/40 resize-none"
-            placeholder="Type here"
-            onChange={(e) => setDescription(e.target.value)}
-            value={description}
-            required
-          ></textarea>
-        </div>
-        <div className="flex items-center gap-5 flex-wrap">
-          <div className="flex flex-col gap-1 w-32">
-            <label className="text-base font-medium" htmlFor="category">
-              Category
-            </label>
-            <select
-              id="category"
-              className="outline-none md:py-2.5 py-2 px-3 rounded border border-gray-500/40"
-              onChange={(e) => setCategory(e.target.value)}
-              defaultValue={category}
-            >
-              <option value="Earphone">Earphone</option>
-              <option value="Headphone">Headphone</option>
-              <option value="Watch">Watch</option>
-              <option value="Smartphone">Smartphone</option>
-              <option value="Laptop">Laptop</option>
-              <option value="Camera">Camera</option>
-              <option value="Accessories">Accessories</option>
-            </select>
-          </div>
-          <div className="flex flex-col gap-1 w-32">
-            <label className="text-base font-medium" htmlFor="product-price">
-              Product Price
-            </label>
-            <input
-              id="product-price"
-              type="number"
-              placeholder="0"
-              className="outline-none md:py-2.5 py-2 px-3 rounded border border-gray-500/40"
-              onChange={(e) => setPrice(e.target.value)}
-              value={price}
-              required
-            />
-          </div>
-          <div className="flex flex-col gap-1 w-32">
-            <label className="text-base font-medium" htmlFor="offer-price">
-              Offer Price
-            </label>
-            <input
-              id="offer-price"
-              type="number"
-              placeholder="0"
-              className="outline-none md:py-2.5 py-2 px-3 rounded border border-gray-500/40"
-              onChange={(e) => setOfferPrice(e.target.value)}
-              value={offerPrice}
-              required
-            />
-          </div>
-        </div>
-        <button type="submit" className="px-8 py-2.5 bg-orange-600 text-white font-medium rounded">
-          ADD
-        </button>
-      </form>
-      {/* <Footer /> */}
+        ))}
+      </div>
+
+      <button onClick={handleUpload} style={{ padding: '10px', backgroundColor: 'green', color: 'white', borderRadius: '6px', cursor: 'pointer', width: '100%' }}>Ürünü Kaydet</button>
+      <button onClick={handleLogout} style={{ padding: '10px', backgroundColor: '#555', color: 'white', borderRadius: '6px', cursor: 'pointer', width: '100%' }}>Çıkış Yap</button>
     </div>
   );
-};
-
-export default AddProduct;
+}
