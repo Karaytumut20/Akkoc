@@ -12,6 +12,11 @@ const nextConfig = {
                 hostname: 'raw.githubusercontent.com',
                 pathname: '**',
             },
+            {
+        protocol: 'https',
+        hostname: 'sbejgtziknyxaylugffc.supabase.co',
+        pathname: '/storage/v1/object/public/**',
+      },
         ],
     },
 };
