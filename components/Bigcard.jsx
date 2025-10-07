@@ -1,50 +1,87 @@
-"use client";
+'use client';
 
-import Image from "next/image";
+import { useState, useEffect } from 'react';
+import Image from 'next/image';
+import { supabase } from '@/lib/supabaseClient';
 
 export default function HighJewelryBanner() {
+  const [bigCardProducts, setBigCardProducts] = useState([]);
+
+  useEffect(() => {
+    fetchBigCardProducts();
+  }, []);
+
+  const fetchBigCardProducts = async () => {
+    const { data, error } = await supabase
+      .from('products')
+      .select('id, name, description, image_urls')
+      .eq('bigcard', true);
+
+    if (error) {
+      console.error('Bigcard ürünleri alınamadı:', error.message);
+      setBigCardProducts([]);
+    } else {
+      const productsWithImages = (data || []).map(item => ({
+        ...item,
+        image_urls: item.image_urls
+          ? Array.isArray(item.image_urls)
+            ? item.image_urls
+            : JSON.parse(item.image_urls)
+          : [],
+      }));
+      setBigCardProducts(productsWithImages);
+    }
+  };
+
+  const getValidImage = (imageArray) => {
+    if (!imageArray || imageArray.length === 0) return '/assets/bigcard.jpg';
+    const url = imageArray[0]?.trim();
+    try { new URL(url); return url; }
+    catch { return '/assets/bigcard.jpg'; }
+  };
+
+  if (bigCardProducts.length === 0) return null; // Bigcard yoksa hiçbir şey gösterme
+
   return (
-    // Ana kapsayıcı
-    <section className="w-full min-h-[85vh] md:h-[90vh] bg-white flex justify-center items-center overflow-hidden">
-      
-      {/* İçerik Kapsayıcı */}
-      <div className="max-w-7xl mx-auto h-full grid grid-cols-1 md:grid-cols-2 gap-8 px-4 sm:px-6 lg:px-8 items-center">
+    <>
+      {bigCardProducts.map(product => (
+        <section
+          key={product.id}
+          className="w-full min-h-[85vh] md:h-[90vh] bg-white flex justify-center items-center overflow-hidden"
+        >
+          <div className="max-w-7xl mx-auto h-full grid grid-cols-1 md:grid-cols-2 gap-8 px-4 sm:px-6 lg:px-8 items-center">
+            
+            {/* SOL SÜTUN: Görsel */}
+            <div className="relative w-full h-[300px] sm:h-[400px] md:h-[600px] flex justify-center items-center rounded-xl overflow-hidden">
+              <Image
+                src={getValidImage(product.image_urls)}
+                alt={product.name}
+                fill
+                style={{ objectFit: 'contain' }}
+                quality={100}
+                className="transition-all duration-500"
+                sizes="(max-width: 768px) 100vw, 50vw"
+              />
+            </div>
 
-        {/* SOL SÜTUN: Görsel */}
-        <div className="relative w-full h-[300px] sm:h-[400px] md:h-[600px] flex justify-center items-center  rounded-xl overflow-hidden">
-          <Image
-            src="/assets/bigcard.jpg"
-            alt="Sea of Wonder High Jewelry Necklace"
-            fill
-            style={{ objectFit: "contain" }} // 🔹 Resim tam görünür, taşmadan sığar
-            quality={100}
-            className="transition-all duration-500"
-            sizes="(max-width: 768px) 100vw, 50vw"
-          />
-        </div>
-
-        {/* SAĞ SÜTUN: Metin İçeriği */}
-        <div className="flex flex-col justify-center items-start text-left py-8 md:py-0">
-          
-          {/* Başlık */}
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif text-gray-900 mb-6 leading-tight">
-            Introducing Our Newest <br /> High Jewelry Creations
-          </h1>
-
-          {/* Açıklama Metni */}
-          <p className="text-base sm:text-lg text-gray-700 max-w-lg mb-10">
-            The fall expression of Blue Book 2025: <strong>Sea of Wonder</strong> is a mesmerizing tribute to the beauty and rhythm of the ocean. The latest masterpieces reinterpret archival creations in breathtaking new designs—each showcasing the world's finest diamonds and extraordinary colored gemstones.
-          </p>
-
-          {/* Buton/Link */}
-          <a
-            href="/collection"
-            className="text-sm font-semibold tracking-widest uppercase text-gray-900 border-b-2 border-gray-900 pb-1 hover:text-teal-600 hover:border-teal-600 transition duration-200"
-          >
-            EXPLORE THE COLLECTION
-          </a>
-        </div>
-      </div>
-    </section>
+            {/* SAĞ SÜTUN: Metin */}
+            <div className="flex flex-col justify-center items-start text-left py-8 md:py-0">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif text-gray-900 mb-6 leading-tight">
+                {product.name}
+              </h1>
+              <p className="text-base sm:text-lg text-gray-700 max-w-lg mb-10">
+                {product.description || 'Ürün açıklaması yok.'}
+              </p>
+              <a
+                href="/collection"
+                className="text-sm font-semibold tracking-widest uppercase text-gray-900 border-b-2 border-gray-900 pb-1 hover:text-teal-600 hover:border-teal-600 transition duration-200"
+              >
+                EXPLORE THE COLLECTION
+              </a>
+            </div>
+          </div>
+        </section>
+      ))}
+    </>
   );
 }

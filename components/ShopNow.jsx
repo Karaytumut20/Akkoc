@@ -32,7 +32,7 @@ export default function TiffanyIconsGrid() {
         
         {/* Ana Başlık */}
         <h2 className="text-xl sm:text-2xl font-serif text-gray-900 text-center mb-12 sm:mb-16">
-          The Tiffany Icons
+          The Tiffany Iconssssaa
         </h2>
 
         {/* Dört Sütunlu Grid Düzeni */}

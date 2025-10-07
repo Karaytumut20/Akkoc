@@ -13,17 +13,16 @@ const ProductCard = ({ product }) => {
   return (
     <div
       onClick={() => { router.push('/product/' + product.id); scrollTo(0, 0); }}
-      // 'max-w-[200px]' yerine 'w-full' ve ortalama için 'mx-auto' eklendi (Grid içinde zaten ortalanacak)
-      className="flex flex-col items-start gap-0.5 w-full max-w-[200px] cursor-pointer"
+      className="flex flex-col items-start gap-0.5 w-full max-w-[210px] cursor-pointer"
     >
-      {/* DEĞİŞİKLİK 1: 'bg-gray-500/10' KALDIRILDI */}
-      <div className="cursor-pointer group relative rounded-lg w-full h-52 flex items-center justify-center">
+      {/* Görsel alanı: Sabit en-boy oranı 3.2:4 olarak ayarlandı */}
+      <div className="cursor-pointer group relative rounded-lg w-full aspect-[3.2/4] flex items-center justify-center overflow-hidden">
         <Image
           src={product.image_urls?.[0] || '/placeholder.png'}
           alt={product.name}
-          className="group-hover:scale-105 transition object-contain w-full h-full"
+          className="group-hover:scale-105 transition object-cover w-full h-full"
           width={800}
-          height={800}
+          height={1000} // 3.2:4 oranı için height
         />
         <button className="absolute top-2 right-2 bg-white p-2 rounded-full shadow-md">
           <Image
@@ -72,7 +71,11 @@ export default function ProductsGrid() {
     setLoading(false);
   };
 
-  if (loading) return <div className="flex justify-center items-center h-screen text-lg text-gray-700">Ürünler yükleniyor...</div>;
+  if (loading) return (
+    <div className="flex justify-center items-center h-screen text-lg text-gray-700">
+      Ürünler yükleniyor...
+    </div>
+  );
 
   return (
     <div className="text-gray-800 p-4 sm:p-6 lg:p-8">
@@ -81,10 +84,12 @@ export default function ProductsGrid() {
       </h1>
 
       {products.length === 0 ? (
-        <p className="text-center text-xl text-gray-500 py-10">Henüz ürün bulunmuyor.</p>
+        <p className="text-center text-xl text-gray-500 py-10">
+          Henüz ürün bulunmuyor.
+        </p>
       ) : (
-        // DEĞİŞİKLİK 2: Tek sütunlu görünümde (sm'den küçük) kartları ortalamak için 'justify-items-center' eklendi.
-        <div className="grid grid-cols-1 justify-items-center sm:grid-cols-2 sm:justify-items-stretch md:grid-cols-3 lg:grid-cols-4 gap-6">
+        // Mobilde 2 sütun, sm'de 3, md'de 4, lg'de 5, xl ve üstünde 6 sütun
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 justify-items-center">
           {products.map(product => (
             <ProductCard key={product.id} product={product} />
           ))}

@@ -7,7 +7,7 @@ import NewsLetter from "@/components/NewsLetter";
 import FeaturedProduct from "@/components/FeaturedProduct";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import Categories from "@/components/Categories";
+import CategoryPicture from "@/components/CategoryPicture";
 import Services from "@/components/Services";
 import Bigcard from "@/components/Bigcard";
 import DoubleBigCard from "@/components/DoubleBigCard";
@@ -21,7 +21,7 @@ const Home = () => {
       <VideoBar/>
       <div className="px-6 md:px-16 lg:px-32">
 
-              <Categories/>
+              <CategoryPicture/>
 
         <HomeProducts />
         <Bigcard/>
