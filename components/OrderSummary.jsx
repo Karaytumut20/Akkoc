@@ -150,11 +150,10 @@ const OrderSummary = () => {
         onClick={() => alert("Order placed!")} // Buraya gerçek ödeme aksiyonunu ekleyebilirsin
         className="w-full mt-6 py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold rounded-2xl hover:from-orange-600 hover:to-orange-700 transition shadow-lg text-lg"
       >
-        Place Order
+        Place Orders
       </button>
     </div>
   );
 };
-
+ 
 export default OrderSummary;
-s
