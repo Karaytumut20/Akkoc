@@ -9,7 +9,7 @@ const OrderSummary = () => {
   const [paymentMethod, setPaymentMethod] = useState("card");
   const [coupon, setCoupon] = useState("");
 
-  // 🧠 Sayfa yenilendiğinde localStorage'dan cartItems yükle
+  // Sayfa yenilendiğinde localStorage'dan cartItems yükle
   useEffect(() => {
     const storedCart = localStorage.getItem("cartItems");
     if (storedCart) {
@@ -17,25 +17,33 @@ const OrderSummary = () => {
     }
   }, [setCartItems]);
 
-  // 💾 cartItems değiştiğinde localStorage'a kaydet
+  // cartItems değiştiğinde localStorage'a kaydet (boş olsa bile)
   useEffect(() => {
-    if (Object.keys(cartItems).length > 0) {
-      localStorage.setItem("cartItems", JSON.stringify(cartItems));
-    }
+    localStorage.setItem("cartItems", JSON.stringify(cartItems));
   }, [cartItems]);
 
+  // Sepetten ürün kaldırma
+  const removeItem = (productId) => {
+    const updatedCart = { ...cartItems };
+    delete updatedCart[productId];
+    setCartItems(updatedCart); // localStorage useEffect ile otomatik güncellenecek
+  };
+
   return (
-    <div className="w-full md:w-[500px] lg:w-[600px] bg-white shadow-2xl rounded-3xl p-8 mx-auto">
+    <div className="w-full md:w-[500px] lg:w-[600px] bg-white shadow-2xl rounded-3xl p-6 md:p-8 mx-auto">
       <h2 className="text-3xl font-bold text-gray-900 mb-6 border-b pb-3">Checkout</h2>
 
       {/* Sepetteki Ürünler */}
-      <div className="space-y-5 max-h-[500px] overflow-y-auto mb-6">
+      <div className="space-y-5 mb-6 max-h-[60vh] md:max-h-[500px] overflow-y-auto">
+        {Object.values(cartItems).length === 0 && (
+          <p className="text-gray-500 text-center py-10">Your cart is empty</p>
+        )}
         {Object.values(cartItems).map((item, idx) => (
           <div
             key={idx}
-            className="flex items-center justify-between bg-gray-50 p-4 rounded-2xl hover:shadow-md transition"
+            className="flex items-center justify-between bg-gray-50 p-3 md:p-4 rounded-2xl hover:shadow-md transition"
           >
-            <div className="w-20 h-20 relative rounded-lg overflow-hidden flex-shrink-0">
+            <div className="w-16 h-16 md:w-20 md:h-20 relative rounded-lg overflow-hidden flex-shrink-0">
               <Image
                 src={item.product.image[0] || "/placeholder.png"}
                 alt={item.product.name}
@@ -43,22 +51,31 @@ const OrderSummary = () => {
                 className="object-cover"
               />
             </div>
-            <div className="flex-1 px-4">
-              <p className="font-semibold text-gray-800">{item.product.name}</p>
-              <p className="text-sm text-gray-500">{currency}{item.product.price}</p>
+            <div className="flex-1 px-3 md:px-4">
+              <p className="font-semibold text-gray-800 text-sm md:text-base">{item.product.name}</p>
+              <p className="text-xs md:text-sm text-gray-500">{currency}{item.product.price}</p>
             </div>
             <div className="flex items-center border rounded-lg overflow-hidden">
               <button
                 onClick={() => updateCartQuantity(item.product.id, item.quantity - 1)}
-                className="px-3 py-1 bg-gray-200 hover:bg-gray-300 transition"
+                className="px-2 py-1 md:px-3 md:py-1 bg-gray-200 hover:bg-gray-300 transition"
               >-</button>
-              <span className="px-3 py-1 text-gray-700">{item.quantity}</span>
+              <span className="px-2 py-1 md:px-3 md:py-1 text-gray-700">{item.quantity}</span>
               <button
                 onClick={() => updateCartQuantity(item.product.id, item.quantity + 1)}
-                className="px-3 py-1 bg-gray-200 hover:bg-gray-300 transition"
+                className="px-2 py-1 md:px-3 md:py-1 bg-gray-200 hover:bg-gray-300 transition"
               >+</button>
             </div>
-            <div className="ml-4 font-semibold text-gray-900">
+
+            {/* Ürünü silme butonu */}
+            <button
+              onClick={() => removeItem(item.product.id)}
+              className="ml-2 md:ml-4 text-red-500 hover:text-red-700 font-semibold"
+            >
+              Remove
+            </button>
+
+            <div className="ml-2 md:ml-4 font-semibold text-gray-900 text-sm md:text-base">
               {currency}{(item.product.price * item.quantity).toFixed(2)}
             </div>
           </div>
@@ -133,7 +150,10 @@ const OrderSummary = () => {
       </div>
 
       {/* Place Order */}
-      <button className="w-full mt-6 py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold rounded-2xl hover:from-orange-600 hover:to-orange-700 transition shadow-lg text-lg">
+      <button
+        onClick={() => alert("Order placed!")} // Buraya gerçek ödeme aksiyonunu ekleyebilirsin
+        className="w-full mt-6 py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold rounded-2xl hover:from-orange-600 hover:to-orange-700 transition shadow-lg text-lg"
+      >
         Place Order
       </button>
     </div>
