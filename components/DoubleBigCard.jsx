@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import Image from "next/image";
-import { supabase } from "@/lib/supabaseClient";
+import { useState, useEffect } from 'react';
+import Image from 'next/image';
+import { supabase } from '@/lib/supabaseClient';
 
 export default function FeaturedCategories() {
-  const [featuredItems, setFeaturedItems] = useState([]); // <-- tip kaldırıldı
+  const [featuredItems, setFeaturedItems] = useState([]);
 
   useEffect(() => {
     fetchFeaturedProducts();
@@ -13,12 +13,12 @@ export default function FeaturedCategories() {
 
   const fetchFeaturedProducts = async () => {
     const { data, error } = await supabase
-      .from("products")
-      .select("id, name, image_urls")
-      .eq("doublebigcard", true);
+      .from('products')
+      .select('id, name, image_urls')
+      .eq('doublebigcard', true);
 
     if (error) {
-      console.error("DoubleBigCard ürünleri alınamadı:", error.message);
+      console.error('DoubleBigCard ürünleri alınamadı:', error.message);
       setFeaturedItems([]);
     } else {
       const productsWithImages = (data || []).map((item) => ({
@@ -34,13 +34,13 @@ export default function FeaturedCategories() {
   };
 
   const getValidImage = (imageArray) => {
-    if (!imageArray || imageArray.length === 0) return "/assets/bigcard.jpg";
+    if (!imageArray || imageArray.length === 0) return '/assets/bigcard.jpg';
     const url = imageArray[0]?.trim();
     try {
       new URL(url);
       return url;
     } catch {
-      return "/assets/bigcard.jpg";
+      return '/assets/bigcard.jpg';
     }
   };
 
@@ -57,7 +57,8 @@ export default function FeaturedCategories() {
                   src={getValidImage(item.image_urls)}
                   alt={item.name}
                   fill
-                  style={{ objectFit: "contain" }}
+                  // Hata Düzeltildi: Fazla yıldız işaretleri kaldırıldı
+                  style={{ objectFit: 'cover' }} 
                   className="transition-transform duration-700 group-hover:scale-105"
                   sizes="(max-width: 768px) 100vw, 50vw"
                 />
@@ -68,7 +69,7 @@ export default function FeaturedCategories() {
                   {item.name}
                 </h3>
                 <a
-                  href={`/shop/${item.name.toLowerCase().replace(/\s/g, "-")}`}
+                  href={`/shop/${item.name.toLowerCase().replace(/\s/g, '-')}`}
                   className="text-xs font-semibold tracking-widest uppercase text-gray-900 border-b border-gray-900 pb-1 hover:text-teal-600 hover:border-teal-600 transition duration-200"
                 >
                   SHOP NOW

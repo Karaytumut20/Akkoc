@@ -6,80 +6,59 @@ import { createContext, useContext, useEffect, useState } from "react";
 export const AppContext = createContext();
 
 export const useAppContext = () => {
-    return useContext(AppContext)
-}
+    return useContext(AppContext);
+};
 
 export const AppContextProvider = (props) => {
+    const currency = process.env.NEXT_PUBLIC_CURRENCY || "$";
+    const router = useRouter();
 
-    const currency = process.env.NEXT_PUBLIC_CURRENCY
-    const router = useRouter()
+    const [products, setProducts] = useState([]);
+    const [userData, setUserData] = useState(false);
+    const [isSeller, setIsSeller] = useState(true);
+    const [cartItems, setCartItems] = useState({}); 
+    // cartItems: { productId: { product, quantity } }
 
-    const [products, setProducts] = useState([])
-    const [userData, setUserData] = useState(false)
-    const [isSeller, setIsSeller] = useState(true)
-    const [cartItems, setCartItems] = useState({})
-
+    // Ürünleri çek
     const fetchProductData = async () => {
-        setProducts(productsDummyData)
-    }
+        setProducts(productsDummyData);
+    };
 
     const fetchUserData = async () => {
-        setUserData(userDummyData)
-    }
+        setUserData(userDummyData);
+    };
 
-    const addToCart = async (itemId) => {
-
+    // Sepete ürün ekle
+    const addToCart = (product) => {
         let cartData = structuredClone(cartItems);
-        if (cartData[itemId]) {
-            cartData[itemId] += 1;
-        }
-        else {
-            cartData[itemId] = 1;
+        if (cartData[product.id]) {
+            cartData[product.id].quantity += 1;
+        } else {
+            cartData[product.id] = { product, quantity: 1 };
         }
         setCartItems(cartData);
+    };
 
-    }
-
-    const updateCartQuantity = async (itemId, quantity) => {
-
+    const updateCartQuantity = (productId, quantity) => {
         let cartData = structuredClone(cartItems);
-        if (quantity === 0) {
-            delete cartData[itemId];
+        if (quantity <= 0) {
+            delete cartData[productId];
         } else {
-            cartData[itemId] = quantity;
+            cartData[productId].quantity = quantity;
         }
-        setCartItems(cartData)
-
-    }
+        setCartItems(cartData);
+    };
 
     const getCartCount = () => {
-        let totalCount = 0;
-        for (const items in cartItems) {
-            if (cartItems[items] > 0) {
-                totalCount += cartItems[items];
-            }
-        }
-        return totalCount;
-    }
+        return Object.values(cartItems).reduce((total, item) => total + item.quantity, 0);
+    };
 
     const getCartAmount = () => {
-        let totalAmount = 0;
-        for (const items in cartItems) {
-            let itemInfo = products.find((product) => product._id === items);
-            if (cartItems[items] > 0) {
-                totalAmount += itemInfo.offerPrice * cartItems[items];
-            }
-        }
-        return Math.floor(totalAmount * 100) / 100;
-    }
+        return Math.floor(Object.values(cartItems).reduce((total, item) => total + item.product.price * item.quantity, 0) * 100) / 100;
+    };
 
-    useEffect(() => {
-        fetchProductData()
-    }, [])
-
-    useEffect(() => {
-        fetchUserData()
-    }, [])
+    useEffect(() => { fetchProductData(); }, []);
+    useEffect(() => { fetchUserData(); }, []);
 
     const value = {
         currency, router,
@@ -89,11 +68,7 @@ export const AppContextProvider = (props) => {
         cartItems, setCartItems,
         addToCart, updateCartQuantity,
         getCartCount, getCartAmount
-    }
+    };
 
-    return (
-        <AppContext.Provider value={value}>
-            {props.children}
-        </AppContext.Provider>
-    )
-}
+    return <AppContext.Provider value={value}>{props.children}</AppContext.Provider>;
+};

@@ -3,8 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import Image from 'next/image';
-import { FiTrash2, FiX } from 'react-icons/fi';
-import { FiEdit3 } from 'react-icons/fi'; // Düzenleme için bir ikon ekledim
+import { FiTrash2, FiX, FiEdit3 } from 'react-icons/fi';
 
 const BUCKET_NAME = 'product-images';
 
@@ -14,6 +13,7 @@ const LIMITS = {
   doublebigcard: 2,
   doublebigcardtext: 2,
   icons: 6,
+  brandicon: 4, // Brandicon için maksimum 4
 };
 
 export default function ProductsTable() {
@@ -34,6 +34,7 @@ export default function ProductsTable() {
     doublebigcard: false,
     doublebigcardtext: false,
     icons: false,
+    brandicon: false, // Brandicon eklendi
   });
 
   useEffect(() => {
@@ -45,7 +46,7 @@ export default function ProductsTable() {
     setLoading(true);
     const { data, error } = await supabase
       .from('products')
-      .select('id, name, description, price, category, image_urls, bigcard, doublebigcard, doublebigcardtext, icons');
+      .select('id, name, description, price, category, image_urls, bigcard, doublebigcard, doublebigcardtext, icons, brandicon');
 
     if (error) {
       console.error('Ürünler alınamadı:', error.message);
@@ -53,7 +54,6 @@ export default function ProductsTable() {
     } else {
       setProducts((data || []).map(item => ({
         ...item,
-        // Supabase'den gelen JSON stringini doğru bir şekilde array'e çeviriyoruz
         image_urls: item.image_urls
           ? (Array.isArray(item.image_urls) ? item.image_urls : JSON.parse(item.image_urls))
           : []
@@ -74,7 +74,6 @@ export default function ProductsTable() {
   const getValidImage = (imageArray) => {
     if (!imageArray || imageArray.length === 0) return null;
     const url = imageArray[0]?.trim();
-    // URL'nin geçerli olup olmadığını basitçe kontrol et
     return url && (url.startsWith('http') || url.startsWith('/')) ? url : null;
   };
 
@@ -100,7 +99,6 @@ export default function ProductsTable() {
     
     for (const fileObj of filesToUpload) {
       const file = fileObj.file;
-      // Dosya yolunu oluştururken boşlukları ve özel karakterleri düzelt
       const safeName = formData.name ? formData.name.replace(/[^\w\s-]/g, '').replace(/\s+/g, '_') : 'unnamed_product';
       const filePath = `${safeName}/${Date.now()}_${Math.random().toString(36).substring(2)}_${file.name.replace(/\s/g, '_')}`;
       
@@ -121,7 +119,6 @@ export default function ProductsTable() {
       if (publicUrlData) newImageUrls.push(publicUrlData.publicUrl);
     }
     
-    // Yüklenen dosyaların önizleme URL'lerini temizle
     filesToUpload.forEach(fileObj => URL.revokeObjectURL(fileObj.preview));
     setFilesToUpload([]);
     
@@ -138,7 +135,6 @@ export default function ProductsTable() {
   const handleDelete = async (id) => {
     if (!confirm('Bu ürünü silmek istediğine emin misin?')) return;
     setActionLoading(true);
-    // Hata kontrolü eklenmiş silme işlemi
     const { error } = await supabase.from('products').delete().eq('id', id);
     if (!error) {
         setProducts(products.filter(p => p.id !== id));
@@ -162,24 +158,20 @@ export default function ProductsTable() {
       doublebigcard: product.doublebigcard || false,
       doublebigcardtext: product.doublebigcardtext || false,
       icons: product.icons || false,
+      brandicon: product.brandicon || false, // Brandicon
     });
   };
 
-  // =======================================================
-  // KISITLAMA KONTROLÜ İLE FORM DEĞİŞİKLİK İŞLEVİ
-  // =======================================================
   const handleFormChange = (e) => {
     const { name, value, type, checked } = e.target;
 
     if (type === 'checkbox') {
       const limit = LIMITS[name];
       if (checked) {
-        // Şu anki ürünü listeden hariç tutarak, aynı özelliğe sahip diğer ürünleri say
         const count = products.filter(p => p.id !== editingProduct && p[name]).length;
-
         if (count >= limit) {
-          alert(`Maksimum ${limit} adet ${name} ürünü seçebilirsiniz. Lütfen önce başka bir ürünü kaldırın.`);
-          return; // İşaretlemeyi engelle
+          alert(`Maksimum ${limit} adet ${name} ürünü seçebilirsiniz!`);
+          return;
         }
       }
       setFormData(prev => ({ ...prev, [name]: checked }));
@@ -206,34 +198,28 @@ export default function ProductsTable() {
         description: formData.description,
         category: formData.category,
         price: parseFloat(formData.price),
-        // Supabase'e JSON string olarak kaydediyoruz
         image_urls: JSON.stringify(finalImageUrls), 
         bigcard: formData.bigcard,
         doublebigcard: formData.doublebigcard,
         doublebigcardtext: formData.doublebigcardtext,
         icons: formData.icons,
+        brandicon: formData.brandicon, // Brandicon
       })
       .eq('id', editingProduct);
 
     if (!error) {
       setEditingProduct(null);
-      fetchProducts(); // Başarılı güncelleme sonrası listeyi yenile
+      fetchProducts();
     } else {
       alert('Güncelleme hatası: ' + error.message);
     }
     setActionLoading(false);
   };
   
-  // Tablo başlıkları ve render kısmı
-  // ... (Görünüm kodunuz aynı kalıyor)
-  
   if (loading) return <div className="flex justify-center items-center h-screen text-lg text-gray-700">Ürünler yükleniyor...</div>;
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800">
-      
-      {/* Mobile Menu (FiMenu kaldırıldığı için bu kısmı yorumladım/kaldırdım) */}
-      
       <div className="p-4 sm:p-6 lg:p-8">
         <h1 className="text-3xl font-extrabold mb-8 text-center text-gray-900 border-b pb-4">
             Ürünler Yönetim Paneli
@@ -281,7 +267,8 @@ export default function ProductsTable() {
                       {product.bigcard && <span className="px-2 py-1 bg-indigo-100 text-indigo-700 text-xs rounded-full mr-1">Big</span>}
                       {product.doublebigcard && <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full mr-1">Double</span>}
                       {product.doublebigcardtext && <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-full mr-1">Text</span>}
-                      {product.icons && <span className="px-2 py-1 bg-pink-100 text-pink-700 text-xs rounded-full">Icons</span>}
+                      {product.icons && <span className="px-2 py-1 bg-pink-100 text-pink-700 text-xs rounded-full mr-1">Icons</span>}
+                      {product.brandicon && <span className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full">Brand</span>}
                     </td>
                     <td className="px-4 py-3 sm:px-6 text-center space-y-1 sm:space-x-2 sm:space-y-0 flex flex-col sm:flex-row justify-center items-center">
                       <button 
@@ -375,38 +362,34 @@ export default function ProductsTable() {
                   <div className="border border-indigo-200/50 bg-indigo-50/50 rounded-xl p-4 shadow-inner mt-6">
                     <h3 className="font-bold text-lg text-indigo-700 mb-4">Vitrin Ayarları (Maksimum Seçim Kısıtlamaları Uygulanmıştır)</h3>
                     <div className="flex flex-col gap-3">
-                      
-                      {/* Big Card - Maksimum 1 */}
                       <label className="flex items-center gap-2">
                         <input type="checkbox" name="bigcard" checked={formData.bigcard} onChange={handleFormChange} className="h-4 w-4" /> 
                         Big Card (Max: {LIMITS.bigcard})
                       </label>
-                      
-                      {/* Double Big Card - Maksimum 2 */}
                       <label className="flex items-center gap-2">
                         <input type="checkbox" name="doublebigcard" checked={formData.doublebigcard} onChange={handleFormChange} className="h-4 w-4" /> 
                         Double Big Card (Max: {LIMITS.doublebigcard})
                       </label>
-                      
-                      {/* Double Big Card Text - Maksimum 2 */}
                       <label className="flex items-center gap-2">
                         <input type="checkbox" name="doublebigcardtext" checked={formData.doublebigcardtext} onChange={handleFormChange} className="h-4 w-4" /> 
                         Double Big Card Text (Max: {LIMITS.doublebigcardtext})
                       </label>
-                      
-                      {/* Icons - Maksimum 4 */}
                       <label className="flex items-center gap-2">
                         <input type="checkbox" name="icons" checked={formData.icons} onChange={handleFormChange} className="h-4 w-4" /> 
                         Icons (Max: {LIMITS.icons})
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input type="checkbox" name="brandicon" checked={formData.brandicon} onChange={handleFormChange} className="h-4 w-4" /> 
+                        Brand Icon (Max: {LIMITS.brandicon})
                       </label>
                     </div>
                   </div>
 
                   <div className="mt-6 flex justify-end gap-3">
                     <button onClick={handleUpdate} disabled={actionLoading} className="px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition shadow-md disabled:opacity-50">
-                      {actionLoading ? 'Güncelleniyor...' : 'Kaydet ve Güncelle'}
+                      {actionLoading ? 'Güncelleniyor...' : 'Güncelle'}
                     </button>
-                    <button onClick={() => setEditingProduct(null)} className="px-6 py-3 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400 transition shadow-md">
+                    <button onClick={() => { setEditingProduct(null); setFilesToUpload([]); }} className="px-6 py-3 bg-gray-300 text-gray-800 rounded-xl hover:bg-gray-400 transition shadow-md">
                       İptal
                     </button>
                   </div>
@@ -415,7 +398,6 @@ export default function ProductsTable() {
             </div>
           </div>
         )}
-
       </div>
     </div>
   );

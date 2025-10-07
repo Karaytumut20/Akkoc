@@ -23,24 +23,38 @@ export default function HighJewelryBanner() {
     } else {
       const productsWithImages = (data || []).map(item => ({
         ...item,
+        // image_urls'u dizi formatına çevir
         image_urls: item.image_urls
           ? Array.isArray(item.image_urls)
             ? item.image_urls
-            : JSON.parse(item.image_urls)
+            : JSON.parse(item.image_urls) // Supabase'deki JSON string'i parse et
           : [],
       }));
+      // Görsel URL'lerinin doğru olup olmadığını kontrol etmek için konsola yazdırın!
+      // console.log("Alınan Ürünler:", productsWithImages); 
       setBigCardProducts(productsWithImages);
     }
   };
 
   const getValidImage = (imageArray) => {
     if (!imageArray || imageArray.length === 0) return '/assets/bigcard.jpg';
-    const url = imageArray[0]?.trim();
-    try { new URL(url); return url; }
-    catch { return '/assets/bigcard.jpg'; }
+    
+    // İlk öğeyi al ve boşlukları temizle
+    const url = imageArray[0]?.trim(); 
+    
+    // URL'in varlığını ve geçerliliğini kontrol et
+    if (!url) return '/assets/bigcard.jpg';
+    
+    try { 
+      new URL(url); 
+      return url; 
+    }
+    catch { 
+      return '/assets/bigcard.jpg'; 
+    }
   };
 
-  if (bigCardProducts.length === 0) return null; // Bigcard yoksa hiçbir şey gösterme
+  if (bigCardProducts.length === 0) return null;
 
   return (
     <>
@@ -51,12 +65,12 @@ export default function HighJewelryBanner() {
         >
           <div className="max-w-7xl mx-auto h-full grid grid-cols-1 md:grid-cols-2 gap-8 px-4 sm:px-6 lg:px-8 items-center">
             
-            {/* SOL SÜTUN: Görsel */}
-            <div className="relative w-full h-[300px] sm:h-[400px] md:h-[600px] flex justify-center items-center rounded-xl overflow-hidden">
+            {/* SOL SÜTUN: Görsel - Yüksekliği ayarlanmış div */}
+            <div className="relative w-full h-[300px] sm:h-[400px] md:h-[700px] flex justify-center items-center rounded-xl overflow-hidden">
               <Image
                 src={getValidImage(product.image_urls)}
                 alt={product.name}
-                fill
+                fill // Kapsayıcı div'i tamamen doldurur
                 style={{ objectFit: 'contain' }}
                 quality={100}
                 className="transition-all duration-500"
