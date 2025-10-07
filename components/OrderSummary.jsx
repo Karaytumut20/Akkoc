@@ -22,11 +22,15 @@ const OrderSummary = () => {
     localStorage.setItem("cartItems", JSON.stringify(cartItems));
   }, [cartItems]);
 
-  // Sepetten ürün kaldırma
-  const removeItem = (productId) => {
-    const updatedCart = { ...cartItems };
-    delete updatedCart[productId];
-    setCartItems(updatedCart); // localStorage useEffect ile otomatik güncellenecek
+  // Miktarı güncelle, eğer 0 olursa ürünü sil
+  const handleQuantityChange = (productId, newQuantity) => {
+    if (newQuantity <= 0) {
+      const updatedCart = { ...cartItems };
+      delete updatedCart[productId];
+      setCartItems(updatedCart);
+    } else {
+      updateCartQuantity(productId, newQuantity);
+    }
   };
 
   return (
@@ -57,23 +61,15 @@ const OrderSummary = () => {
             </div>
             <div className="flex items-center border rounded-lg overflow-hidden">
               <button
-                onClick={() => updateCartQuantity(item.product.id, item.quantity - 1)}
+                onClick={() => handleQuantityChange(item.product.id, item.quantity - 1)}
                 className="px-2 py-1 md:px-3 md:py-1 bg-gray-200 hover:bg-gray-300 transition"
               >-</button>
               <span className="px-2 py-1 md:px-3 md:py-1 text-gray-700">{item.quantity}</span>
               <button
-                onClick={() => updateCartQuantity(item.product.id, item.quantity + 1)}
+                onClick={() => handleQuantityChange(item.product.id, item.quantity + 1)}
                 className="px-2 py-1 md:px-3 md:py-1 bg-gray-200 hover:bg-gray-300 transition"
               >+</button>
             </div>
-
-            {/* Ürünü silme butonu */}
-            <button
-              onClick={() => removeItem(item.product.id)}
-              className="ml-2 md:ml-4 text-red-500 hover:text-red-700 font-semibold"
-            >
-              Remove
-            </button>
 
             <div className="ml-2 md:ml-4 font-semibold text-gray-900 text-sm md:text-base">
               {currency}{(item.product.price * item.quantity).toFixed(2)}
@@ -161,3 +157,4 @@ const OrderSummary = () => {
 };
 
 export default OrderSummary;
+s
