@@ -1,6 +1,7 @@
 'use client';
 
-import React from "react";
+import React, { useState } from "react";
+import { useRouter } from "next/navigation"; // ✅ Next.js yönlendirme için
 
 const icons = {
   Menu: (props) => (
@@ -8,6 +9,12 @@ const icons = {
       <line x1="4" x2="20" y1="12" y2="12" />
       <line x1="4" x2="20" y1="6" y2="6" />
       <line x1="4" x2="20" y1="18" y2="18" />
+    </svg>
+  ),
+  Close: (props) => (
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
     </svg>
   ),
   Search: (props) => (
@@ -33,6 +40,20 @@ const icons = {
 };
 
 export default function KnotVideoHero() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const router = useRouter(); // ✅ yönlendirme hook’u
+
+  const navLinks = [
+    "High Jewelry",
+    "Jewelry",
+    "Love & Engagement",
+    "Fine Watches",
+    "Home",
+    "Accessories",
+    "Gifts",
+    "World of Tiffany",
+  ];
+
   return (
     <section className="w-full h-screen relative overflow-hidden bg-black font-sans">
       {/* Background Video */}
@@ -57,15 +78,25 @@ export default function KnotVideoHero() {
             
             {/* LEFT ICONS */}
             <div className="flex items-center space-x-2 sm:space-x-4">
-              <button aria-label="Menu" className="p-2 rounded-full hover:bg-white/20 transition lg:hidden">
-                <icons.Menu className="w-6 h-6" />
+              {/* Hamburger Menu Toggle */}
+              <button
+                aria-label="Menu"
+                className="p-2 rounded-full hover:bg-white/20 transition lg:hidden"
+                onClick={() => setMenuOpen(!menuOpen)}
+              >
+                {menuOpen ? (
+                  <icons.Close className="w-6 h-6" />
+                ) : (
+                  <icons.Menu className="w-6 h-6" />
+                )}
               </button>
+
               <button aria-label="Search" className="p-2 rounded-full hover:bg-white/20 transition">
                 <icons.Search className="w-5 h-5" />
               </button>
             </div>
 
-            {/* SMALLER RESPONSIVE LOGO */}
+            {/* CENTER LOGO */}
             <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 select-none text-center">
               <h1
                 className="font-serif uppercase whitespace-nowrap tracking-[0.25em] text-white
@@ -82,24 +113,21 @@ export default function KnotVideoHero() {
               <button aria-label="Account/Notifications" className="p-2 rounded-full hover:bg-white/20 transition">
                 <icons.Bell className="w-5 h-5" />
               </button>
-              <button aria-label="Shopping Bag" className="p-2 rounded-full hover:bg-white/20 transition">
+
+              {/* 🛒 SHOPPING BAG BUTTON → /cart yönlendirme */}
+              <button
+                aria-label="Shopping Bag"
+                className="p-2 rounded-full hover:bg-white/20 transition"
+                onClick={() => router.push("/cart")} // ✅ yönlendirme eklendi
+              >
                 <icons.ShoppingBag className="w-5 h-5" />
               </button>
             </div>
           </div>
 
-          {/* NAV LINKS */}
+          {/* NAV LINKS (Desktop) */}
           <nav className="mt-6 hidden lg:flex justify-center space-x-10 text-sm font-light tracking-[0.25em] uppercase">
-            {[
-              "High Jewelry",
-              "Jewelry",
-              "Love & Engagement",
-              "Fine Watches",
-              "Home",
-              "Accessories",
-              "Gifts",
-              "World of Tiffany",
-            ].map((item) => (
+            {navLinks.map((item) => (
               <a
                 key={item}
                 href="#"
@@ -112,7 +140,32 @@ export default function KnotVideoHero() {
           </nav>
         </header>
 
-        
+        {/* MOBILE MENU */}
+        {menuOpen && (
+          <div
+            className="absolute top-0 left-0 w-full h-full bg-black/90 z-30 flex flex-col items-center justify-center text-center space-y-8 text-white text-lg font-light uppercase tracking-widest animate-fadeIn"
+          >
+            {/* Close (X) Button */}
+            <button
+              aria-label="Close menu"
+              className="absolute top-6 right-6 p-2 rounded-full hover:bg-white/20 transition"
+              onClick={() => setMenuOpen(false)}
+            >
+              <icons.Close className="w-7 h-7" />
+            </button>
+
+            {navLinks.map((item) => (
+              <a
+                key={item}
+                href="#"
+                onClick={() => setMenuOpen(false)}
+                className="hover:text-orange-300 transition"
+              >
+                {item}
+              </a>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* SHOP NOW BUTTON */}
