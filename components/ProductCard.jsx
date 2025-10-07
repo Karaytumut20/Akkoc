@@ -1,5 +1,3 @@
-// components/ProductCard.jsx
-
 'use client';
 
 import React from 'react';
@@ -10,24 +8,15 @@ import { useAppContext } from '@/context/AppContext';
 const ProductCard = ({ product }) => {
   const { router } = useAppContext();
 
-  // Eğer product prop'u gelmediyse hiçbir şey render etme
   if (!product) {
     return null;
   }
 
-  // Resim URL'sinin geçerli olup olmadığını kontrol eden ve dizi formatını düzelten fonksiyon
   const getValidImage = (imageUrls) => {
-    if (!imageUrls || !Array.isArray(imageUrls) || imageUrls.length === 0) {
-      return '/placeholder.png'; // Varsayılan resim
+    if (Array.isArray(imageUrls) && imageUrls.length > 0 && typeof imageUrls[0] === 'string' && imageUrls[0].trim() !== '') {
+      return imageUrls[0];
     }
-    const url = imageUrls[0];
-    try {
-        // URL'nin geçerli bir formatta olup olmadığını kontrol et
-        new URL(url);
-        return url;
-    } catch {
-        return '/placeholder.png'; // Geçersizse varsayılan resmi kullan
-    }
+    return '/assets/placeholder.jpg'; // Varsayılan resim
   };
 
   return (

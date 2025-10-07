@@ -1,26 +1,15 @@
+// components/OrderSummary.jsx
+
 'use client';
 import { useAppContext } from "@/context/AppContext";
 import Image from "next/image";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 
 const OrderSummary = () => {
   const { currency, cartItems, updateCartQuantity, getCartCount, getCartAmount, setCartItems } = useAppContext();
   const [selectedAddress, setSelectedAddress] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("card");
   const [coupon, setCoupon] = useState("");
-
-  // Sayfa yenilendiğinde localStorage'dan cartItems yükle
-  useEffect(() => {
-    const storedCart = localStorage.getItem("cartItems");
-    if (storedCart) {
-      setCartItems(JSON.parse(storedCart));
-    }
-  }, [setCartItems]);
-
-  // cartItems değiştiğinde localStorage'a kaydet (boş olsa bile)
-  useEffect(() => {
-    localStorage.setItem("cartItems", JSON.stringify(cartItems));
-  }, [cartItems]);
 
   // Miktarı güncelle, eğer 0 olursa ürünü sil
   const handleQuantityChange = (productId, newQuantity) => {
@@ -39,43 +28,43 @@ const OrderSummary = () => {
 
       {/* Sepetteki Ürünler */}
       <div className="space-y-5 mb-6 max-h-[60vh] md:max-h-[500px] overflow-y-auto">
-        {Object.values(cartItems).length === 0 && (
+        {Object.keys(cartItems).length === 0 ? (
           <p className="text-gray-500 text-center py-10">Your cart is empty</p>
+        ) : (
+          Object.values(cartItems).map((item, idx) => (
+            <div
+              key={item.product.id || idx}
+              className="flex items-center justify-between bg-gray-50 p-3 md:p-4 rounded-2xl hover:shadow-md transition"
+            >
+              <div className="w-16 h-16 md:w-20 md:h-20 relative rounded-lg overflow-hidden flex-shrink-0">
+                <Image
+                  src={item.product.image_urls?.[0] || "/placeholder.png"}
+                  alt={item.product.name}
+                  fill
+                  className="object-cover"
+                />
+              </div>
+              <div className="flex-1 px-3 md:px-4">
+                <p className="font-semibold text-gray-800 text-sm md:text-base">{item.product.name}</p>
+                <p className="text-xs md:text-sm text-gray-500">{currency}{item.product.price}</p>
+              </div>
+              <div className="flex items-center border rounded-lg overflow-hidden">
+                <button
+                  onClick={() => handleQuantityChange(item.product.id, item.quantity - 1)}
+                  className="px-2 py-1 md:px-3 md:py-1 bg-gray-200 hover:bg-gray-300 transition"
+                >-</button>
+                <span className="px-2 py-1 md:px-3 md:py-1 text-gray-700">{item.quantity}</span>
+                <button
+                  onClick={() => handleQuantityChange(item.product.id, item.quantity + 1)}
+                  className="px-2 py-1 md:px-3 md:py-1 bg-gray-200 hover:bg-gray-300 transition"
+                >+</button>
+              </div>
+              <div className="ml-2 md:ml-4 font-semibold text-gray-900 text-sm md:text-base">
+                {currency}{(item.product.price * item.quantity).toFixed(2)}
+              </div>
+            </div>
+          ))
         )}
-        {Object.values(cartItems).map((item, idx) => (
-          <div
-            key={idx}
-            className="flex items-center justify-between bg-gray-50 p-3 md:p-4 rounded-2xl hover:shadow-md transition"
-          >
-            <div className="w-16 h-16 md:w-20 md:h-20 relative rounded-lg overflow-hidden flex-shrink-0">
-              <Image
-                src={item.product.image[0] || "/placeholder.png"}
-                alt={item.product.name}
-                fill
-                className="object-cover"
-              />
-            </div>
-            <div className="flex-1 px-3 md:px-4">
-              <p className="font-semibold text-gray-800 text-sm md:text-base">{item.product.name}</p>
-              <p className="text-xs md:text-sm text-gray-500">{currency}{item.product.price}</p>
-            </div>
-            <div className="flex items-center border rounded-lg overflow-hidden">
-              <button
-                onClick={() => handleQuantityChange(item.product.id, item.quantity - 1)}
-                className="px-2 py-1 md:px-3 md:py-1 bg-gray-200 hover:bg-gray-300 transition"
-              >-</button>
-              <span className="px-2 py-1 md:px-3 md:py-1 text-gray-700">{item.quantity}</span>
-              <button
-                onClick={() => handleQuantityChange(item.product.id, item.quantity + 1)}
-                className="px-2 py-1 md:px-3 md:py-1 bg-gray-200 hover:bg-gray-300 transition"
-              >+</button>
-            </div>
-
-            <div className="ml-2 md:ml-4 font-semibold text-gray-900 text-sm md:text-base">
-              {currency}{(item.product.price * item.quantity).toFixed(2)}
-            </div>
-          </div>
-        ))}
       </div>
 
       {/* Adres Seçimi */}
@@ -99,17 +88,13 @@ const OrderSummary = () => {
         <div className="flex gap-4">
           <button
             onClick={() => setPaymentMethod("card")}
-            className={`flex-1 py-3 rounded-lg font-medium transition ${
-              paymentMethod === "card" ? "bg-orange-500 text-white" : "bg-gray-200 text-gray-700"
-            }`}
+            className={`flex-1 py-3 rounded-lg font-medium transition ${paymentMethod === "card" ? "bg-orange-500 text-white" : "bg-gray-200 text-gray-700"}`}
           >
             Credit Card
           </button>
           <button
             onClick={() => setPaymentMethod("cash")}
-            className={`flex-1 py-3 rounded-lg font-medium transition ${
-              paymentMethod === "cash" ? "bg-orange-500 text-white" : "bg-gray-200 text-gray-700"
-            }`}
+            className={`flex-1 py-3 rounded-lg font-medium transition ${paymentMethod === "cash" ? "bg-orange-500 text-white" : "bg-gray-200 text-gray-700"}`}
           >
             Cash
           </button>
@@ -147,10 +132,10 @@ const OrderSummary = () => {
 
       {/* Place Order */}
       <button
-        onClick={() => alert("Order placed!")} // Buraya gerçek ödeme aksiyonunu ekleyebilirsin
+        onClick={() => alert("Order placed!")}
         className="w-full mt-6 py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold rounded-2xl hover:from-orange-600 hover:to-orange-700 transition shadow-lg text-lg"
       >
-        Place Orders
+        Place Order
       </button>
     </div>
   );

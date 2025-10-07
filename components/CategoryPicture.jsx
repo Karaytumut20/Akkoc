@@ -1,3 +1,5 @@
+// components/CategoryPicture.jsx
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -15,34 +17,28 @@ export default function Categories() {
     const { data, error } = await supabase
       .from('products')
       .select('id, name, image_urls')
-      .eq('icons', true); // 👈 sütun ismi düzeltildi
+      .eq('icons', true);
 
     if (error) {
       console.error('Icon ürünleri alınamadı:', error.message);
       setIconProducts([]);
     } else {
-      // Görselleri parse et
       const productsWithImages = (data || []).map(item => ({
         ...item,
         image_urls: item.image_urls
-          ? Array.isArray(item.image_urls)
-            ? item.image_urls
-            : JSON.parse(item.image_urls)
+          ? (Array.isArray(item.image_urls) ? item.image_urls : JSON.parse(item.image_urls))
           : [],
       }));
       setIconProducts(productsWithImages);
     }
   };
 
+  // GÜVENLİ FONKSİYON
   const getValidImage = (imageArray) => {
-    if (!imageArray || imageArray.length === 0) return '/assets/placeholder.jpg';
-    const url = imageArray[0]?.trim();
-    try {
-      new URL(url);
-      return url;
-    } catch {
-      return '/assets/placeholder.jpg';
+    if (Array.isArray(imageArray) && imageArray.length > 0 && typeof imageArray[0] === 'string' && imageArray[0].trim() !== '') {
+        return imageArray[0];
     }
+    return '/assets/placeholder.jpg'; // Varsayılan resim
   };
 
   if (iconProducts.length === 0) return null;
