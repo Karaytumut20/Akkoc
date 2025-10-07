@@ -1,7 +1,9 @@
+// context/AppContext.jsx
+
 'use client'
-import { productsDummyData, userDummyData } from "@/assets/assets";
 import { useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useState } from "react";
+import { supabase } from "@/lib/supabaseClient"; // Supabase client'ı import ediyoruz
 
 export const AppContext = createContext();
 
@@ -13,22 +15,48 @@ export const AppContextProvider = (props) => {
     const currency = process.env.NEXT_PUBLIC_CURRENCY || "$";
     const router = useRouter();
 
+    // State'leri tanımlıyoruz
     const [products, setProducts] = useState([]);
-    const [userData, setUserData] = useState(false);
+    const [loading, setLoading] = useState(true); // Yüklenme durumu için state
+    const [error, setError] = useState(null); // Hata durumu için state
     const [isSeller, setIsSeller] = useState(true);
-    const [cartItems, setCartItems] = useState({}); 
-    // cartItems: { productId: { product, quantity } }
+    const [cartItems, setCartItems] = useState({});
 
-    // Ürünleri çek
-    const fetchProductData = async () => {
-        setProducts(productsDummyData);
+    // Supabase'den ürünleri çeken asenkron fonksiyon
+    const fetchProducts = async () => {
+        setLoading(true); // Veri çekme işlemi başlarken loading'i true yap
+        setError(null); // Önceki hataları temizle
+
+        const { data, error } = await supabase
+            .from('products')
+            .select('*'); // Veritabanındaki 'products' tablosundan tüm verileri çek
+
+        if (error) {
+            console.error("Supabase'den ürünler alınamadı:", error.message);
+            setError(error.message); // Hata varsa state'i güncelle
+            setProducts([]); // Ürün listesini boşalt
+        } else {
+            // Veri başarıyla geldiyse, state'i güncelle
+            // image_urls'in JSON string ise array'e çevrildiğinden emin ol
+            const formattedProducts = data.map(p => ({
+                ...p,
+                image_urls: p.image_urls
+                    ? Array.isArray(p.image_urls)
+                        ? p.image_urls
+                        : JSON.parse(p.image_urls)
+                    : [],
+            }));
+            setProducts(formattedProducts);
+        }
+        setLoading(false); // Veri çekme işlemi bitince loading'i false yap
     };
 
-    const fetchUserData = async () => {
-        setUserData(userDummyData);
-    };
-
-    // Sepete ürün ekle
+    // Sayfa ilk yüklendiğinde ürünleri çek
+    useEffect(() => {
+        fetchProducts();
+    }, []);
+    
+    // Sepet işlemleri (Mevcut kodunuzdaki gibi kalabilir)
     const addToCart = (product) => {
         let cartData = structuredClone(cartItems);
         if (cartData[product.id]) {
@@ -57,17 +85,22 @@ export const AppContextProvider = (props) => {
         return Math.floor(Object.values(cartItems).reduce((total, item) => total + item.product.price * item.quantity, 0) * 100) / 100;
     };
 
-    useEffect(() => { fetchProductData(); }, []);
-    useEffect(() => { fetchUserData(); }, []);
-
+    // Context'e sağlanacak değerler
     const value = {
-        currency, router,
-        isSeller, setIsSeller,
-        userData, fetchUserData,
-        products, fetchProductData,
-        cartItems, setCartItems,
-        addToCart, updateCartQuantity,
-        getCartCount, getCartAmount
+        currency,
+        router,
+        isSeller,
+        setIsSeller,
+        products,
+        loading, // loading ve error durumlarını da context'e ekliyoruz
+        error,
+        fetchProducts, // Dilerseniz başka sayfalardan tekrar veri çekmek için bunu da ekleyebilirsiniz
+        cartItems,
+        setCartItems,
+        addToCart,
+        updateCartQuantity,
+        getCartCount,
+        getCartAmount
     };
 
     return <AppContext.Provider value={value}>{props.children}</AppContext.Provider>;

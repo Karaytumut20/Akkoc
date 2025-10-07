@@ -1,90 +1,64 @@
 // components/ProductsGrid.jsx
-import React, { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabaseClient'
-import ProductCard from './ProductCard'
 
-const ProductsGrid = () => {
-  const [products, setProducts] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabaseClient';
+import ProductCard from './ProductCard'; // 1. Adımda oluşturduğumuz yeni bileşeni import ediyoruz
+
+export default function ProductsGrid() {
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let isMounted = true
+    fetchProducts();
+  }, []);
 
-    const fetchProducts = async () => {
-      setLoading(true)
-      setError(null)
+  const fetchProducts = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('products')
+      .select('id, name, image_urls');
 
-      // Adjust the columns you need; here we select all columns
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .order('created_at', { ascending: false }) // optional: order by created_at
-
-      if (!isMounted) return
-
-      if (error) {
-        setError(error.message || 'Failed to load products')
-        setProducts([])
-      } else {
-        // If images are stored as JSON text in `image` column, try to parse safely
-        const normalized = (data || []).map((p) => {
-          let image = p.image
-          // If image is a JSON string, parse it
-          try {
-            if (typeof image === 'string' && (image.startsWith('[') || image.startsWith('{'))) {
-              image = JSON.parse(image)
-            }
-          } catch (e) {
-            // leave image as-is if JSON.parse fails
-          }
-
-          return { ...p, image }
-        })
-
-        setProducts(normalized)
-      }
-
-      setLoading(false)
+    if (error) {
+      console.error('Ürünler alınamadı:', error.message);
+      setProducts([]);
+    } else {
+      setProducts((data || []).map(item => ({
+        ...item,
+        image_urls: item.image_urls
+          ? Array.isArray(item.image_urls)
+            ? item.image_urls
+            : JSON.parse(item.image_urls)
+          : []
+      })));
     }
+    setLoading(false);
+  };
 
-    fetchProducts()
-
-    // optional: realtime subscription (commented out). If you want realtime updates, enable and configure:
-    // const subscription = supabase
-    //   .from('products')
-    //   .on('*', payload => { fetchProducts() })
-    //   .subscribe()
-    //
-    // return () => {
-    //   isMounted = false
-    //   supabase.removeSubscription(subscription)
-    // }
-
-    return () => {
-      isMounted = false
-    }
-  }, [])
-
-  if (loading) {
-    return <div className="py-8 text-center">Loading products...</div>
-  }
-
-  if (error) {
-    return <div className="py-8 text-center text-red-500">Error: {error}</div>
-  }
-
-  if (!products.length) {
-    return <div className="py-8 text-center">No products found.</div>
-  }
+  if (loading) return (
+    <div className="flex justify-center items-center h-screen text-lg text-gray-700">
+      Ürünler yükleniyor...
+    </div>
+  );
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-      {products.map((product) => (
-        <ProductCard key={product._id || product.id} product={product} />
-      ))}
-    </div>
-  )
-}
+    <div className="text-gray-800 p-4 sm:p-6 lg:p-8">
+      <h1 className="text-3xl font-extrabold mb-8 text-center text-gray-900 border-b pb-4">
+        Tüm Ürünler
+      </h1>
 
-export default ProductsGrid
+      {products.length === 0 ? (
+        <p className="text-center text-xl text-gray-500 py-10">
+          Henüz ürün bulunmuyor.
+        </p>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 justify-items-center">
+          {products.map(product => (
+            <ProductCard key={product.id} product={product} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
