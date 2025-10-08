@@ -1,4 +1,9 @@
 'use client'
+// Bu dosya, uygulamanın genel state yönetimini ve kimlik doğrulama (authentication)
+// işlemlerini yöneten ana context dosyasıdır. İsteğiniz üzerine, sadece 'customer'
+// rolüne sahip kullanıcıların normal giriş yapabilmesi için `signIn` fonksiyonunu güncelledim.
+// Satıcılar kendi panellerinden giriş yapmaya devam edebilirler.
+
 import { useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
@@ -98,21 +103,45 @@ export const AppContextProvider = (props) => {
                 return { user: null, profile: null, error: profileError };
             }
             const role = profile?.role || 'customer';
+
+            // YALNIZCA 'customer' ROLÜ GİRİŞ YAPABİLİR KONTROLÜ
+            if (window.location.pathname.startsWith('/auth') && role !== 'customer') {
+                toast.error('Bu alana sadece müşteri hesapları giriş yapabilir. Satıcılar kendi panelinden giriş yapmalıdır.');
+                await supabase.auth.signOut();
+                setUser(null);
+                return { user: null, profile: null, error: new Error('Yalnızca müşteriler giriş yapabilir.') };
+            }
+
             const userData = { ...signInData.user, role: role };
             setUser(userData);
             toast.success('Giriş başarılı!');
+
+            // Giriş sonrası yönlendirme
+            if (role === 'seller') {
+                router.push('/seller/product-list');
+            } else {
+                router.push('/');
+            }
+
             return { user: signInData.user, profile: { role }, error: null };
         }
         return { user: null, profile: null, error: new Error('Bilinmeyen bir hata oluştu.') };
     };
 
     const signOut = async () => {
+        const currentPath = window.location.pathname;
         await supabase.auth.signOut();
         setCartItems({});
         setUser(null);
         setAddresses([]);
         setMyOrders([]);
-        router.push('/');
+        
+        // Eğer satıcı panelindeyse, satıcı giriş sayfasına yönlendir.
+        if (currentPath.startsWith('/seller')) {
+            router.push('/seller');
+        } else {
+            router.push('/');
+        }
         toast.success('Başarıyla çıkış yapıldı.');
     };
     
@@ -224,4 +253,3 @@ export const AppContextProvider = (props) => {
 
     return <AppContext.Provider value={value}>{props.children}</AppContext.Provider>;
 };
-
