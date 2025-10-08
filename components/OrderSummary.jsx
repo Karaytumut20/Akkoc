@@ -4,14 +4,14 @@
 import { useAppContext } from "@/context/AppContext";
 import Image from "next/image";
 import React, { useState } from "react";
+import toast from 'react-hot-toast';
 
 const OrderSummary = () => {
-  const { currency, cartItems, updateCartQuantity, getCartCount, getCartAmount, setCartItems } = useAppContext();
+  const { currency, cartItems, updateCartQuantity, getCartCount, getCartAmount, setCartItems, placeOrder, addresses, router } = useAppContext();
   const [selectedAddress, setSelectedAddress] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("card");
   const [coupon, setCoupon] = useState("");
 
-  // Miktarı güncelle, eğer 0 olursa ürünü sil
   const handleQuantityChange = (productId, newQuantity) => {
     if (newQuantity <= 0) {
       const updatedCart = { ...cartItems };
@@ -22,14 +22,21 @@ const OrderSummary = () => {
     }
   };
 
+  const handlePlaceOrder = () => {
+    if (!selectedAddress) {
+        toast.error("Lütfen bir adres seçin!");
+        return;
+    }
+    placeOrder(selectedAddress);
+  };
+
   return (
     <div className="w-full md:w-[500px] lg:w-[600px] bg-white shadow-2xl rounded-3xl p-6 md:p-8 mx-auto">
       <h2 className="text-3xl font-bold text-gray-900 mb-6 border-b pb-3">Checkout</h2>
 
-      {/* Sepetteki Ürünler */}
       <div className="space-y-5 mb-6 max-h-[60vh] md:max-h-[500px] overflow-y-auto">
         {Object.keys(cartItems).length === 0 ? (
-          <p className="text-gray-500 text-center py-10">Your cart is empty</p>
+          <p className="text-gray-500 text-center py-10">Sepetiniz boş.</p>
         ) : (
           Object.values(cartItems).map((item, idx) => (
             <div
@@ -38,7 +45,7 @@ const OrderSummary = () => {
             >
               <div className="w-16 h-16 md:w-20 md:h-20 relative rounded-lg overflow-hidden flex-shrink-0">
                 <Image
-                  src={item.product.image_urls?.[0] || "/placeholder.png"}
+                  src={item.product.image_urls?.[0] || "/assets/placeholder.jpg"}
                   alt={item.product.name}
                   fill
                   className="object-cover"
@@ -67,22 +74,27 @@ const OrderSummary = () => {
         )}
       </div>
 
-      {/* Adres Seçimi */}
       <div className="mb-6">
-        <label className="block text-gray-700 font-medium mb-2">Select Address</label>
+        <div className="flex justify-between items-center mb-2">
+            <label className="block text-gray-700 font-medium">Select Address</label>
+            <button onClick={() => router.push('/add-address')} className="text-sm text-orange-600 hover:underline">Add New Address</button>
+        </div>
         <select
           value={selectedAddress}
           onChange={(e) => setSelectedAddress(e.target.value)}
           className="w-full border rounded-lg p-3 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-orange-400"
         >
-          <option value="">-- Choose an Address --</option>
-          <option value="home">Home - 123 Main St</option>
-          <option value="work">Work - 456 Office Rd</option>
-          <option value="other">Other</option>
+          <option value="" disabled>-- Adres seçin --</option>
+          {addresses.length > 0 ? (
+            addresses.map(addr => (
+                <option key={addr.id} value={addr.id}>{`${addr.full_name} - ${addr.area}, ${addr.city}`}</option>
+            ))
+          ) : (
+            <option disabled>Kayıtlı adresiniz bulunmuyor.</option>
+          )}
         </select>
       </div>
 
-      {/* Ödeme Yöntemi */}
       <div className="mb-6">
         <label className="block text-gray-700 font-medium mb-2">Payment Method</label>
         <div className="flex gap-4">
@@ -96,12 +108,11 @@ const OrderSummary = () => {
             onClick={() => setPaymentMethod("cash")}
             className={`flex-1 py-3 rounded-lg font-medium transition ${paymentMethod === "cash" ? "bg-orange-500 text-white" : "bg-gray-200 text-gray-700"}`}
           >
-            Cash
+            Cash on Delivery
           </button>
         </div>
       </div>
 
-      {/* Kupon */}
       <div className="mb-6">
         <label className="block text-gray-700 font-medium mb-2">Coupon Code</label>
         <div className="flex gap-2">
@@ -118,7 +129,6 @@ const OrderSummary = () => {
         </div>
       </div>
 
-      {/* Sepet Özeti */}
       <div className="mt-6 border-t pt-4 space-y-3">
         <div className="flex justify-between text-gray-700 font-medium">
           <span>Items ({getCartCount()})</span>
@@ -130,10 +140,10 @@ const OrderSummary = () => {
         </div>
       </div>
 
-      {/* Place Order */}
       <button
-        onClick={() => alert("Order placed!")}
-        className="w-full mt-6 py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold rounded-2xl hover:from-orange-600 hover:to-orange-700 transition shadow-lg text-lg"
+        onClick={handlePlaceOrder}
+        disabled={getCartCount() === 0 || !selectedAddress}
+        className="w-full mt-6 py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold rounded-2xl hover:from-orange-600 hover:to-orange-700 transition shadow-lg text-lg disabled:opacity-50 disabled:cursor-not-allowed"
       >
         Place Order
       </button>

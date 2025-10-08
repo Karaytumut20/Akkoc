@@ -4,20 +4,16 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import toast from "react-hot-toast";
 
-// 1. Context'i oluşturun ve dışa aktarın.
 export const AppContext = createContext(undefined);
 
-// 2. Custom Hook'u oluşturun. Bu hook, context'in doğru kullanıldığını kontrol eder.
 export const useAppContext = () => {
     const context = useContext(AppContext);
-    // Eğer context, Provider'ın dışında kullanılırsa geliştiriciyi uyaran bir hata fırlat.
     if (context === undefined) {
         throw new Error('useAppContext must be used within an AppContextProvider');
     }
     return context;
 };
 
-// 3. Provider bileşenini oluşturun ve dışa aktarın.
 export const AppContextProvider = (props) => {
     const currency = process.env.NEXT_PUBLIC_CURRENCY || "$";
     const router = useRouter();
@@ -26,9 +22,11 @@ export const AppContextProvider = (props) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [cartItems, setCartItems] = useState({});
-
+    
     const [user, setUser] = useState(null);
     const [authLoading, setAuthLoading] = useState(true);
+    
+    const [addresses, setAddresses] = useState([]);
 
     useEffect(() => {
         const fetchUserAndProfile = async () => {
@@ -42,6 +40,7 @@ export const AppContextProvider = (props) => {
                     .single();
                 
                 setUser({ ...authUser, role: profile?.role || 'customer' });
+                fetchAddresses(authUser.id);
             } else {
                 setUser(null);
             }
@@ -59,8 +58,10 @@ export const AppContextProvider = (props) => {
                     .eq('id', currentUser.id)
                     .single();
                 setUser({ ...currentUser, role: profile?.role || 'customer' });
+                fetchAddresses(currentUser.id);
             } else {
                 setUser(null);
+                setAddresses([]);
             }
             setAuthLoading(false);
         });
@@ -95,7 +96,8 @@ export const AppContextProvider = (props) => {
     const signOut = async () => {
         await supabase.auth.signOut();
         setCartItems({});
-        setUser(null); // Kullanıcı state'ini temizle
+        setUser(null);
+        setAddresses([]);
         router.push('/');
         toast.success('Başarıyla çıkış yapıldı.');
     };
@@ -118,12 +120,37 @@ export const AppContextProvider = (props) => {
         setLoading(false);
     };
 
-    useEffect(() => { fetchProducts(); }, []);
+    const fetchAddresses = async (userId) => {
+        if (!userId) return;
+        const { data, error } = await supabase.from('addresses').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+        if (error) {
+            toast.error("Adresler alınamadı: " + error.message);
+        } else {
+            setAddresses(data || []);
+        }
+    };
 
+    const addAddress = async (addressData) => {
+        if (!user) {
+            toast.error("Adres eklemek için giriş yapmalısınız.");
+            return;
+        }
+        const toastId = toast.loading("Adresiniz ekleniyor...");
+        try {
+            const { error } = await supabase.from('addresses').insert({ ...addressData, user_id: user.id });
+            if (error) throw error;
+            await fetchAddresses(user.id);
+            toast.success("Adres başarıyla eklendi!", { id: toastId });
+            router.back();
+        } catch (error) {
+            toast.error("Adres eklenirken bir hata oluştu: " + error.message, { id: toastId });
+        }
+    };
+
+    useEffect(() => { fetchProducts(); }, []);
     useEffect(() => {
         try { const storedCart = localStorage.getItem("cartItems"); if (storedCart) setCartItems(JSON.parse(storedCart)); } catch (e) { console.error(e); }
     }, []);
-
     useEffect(() => { localStorage.setItem("cartItems", JSON.stringify(cartItems)); }, [cartItems]);
 
     const addToCart = (product) => {
@@ -142,13 +169,67 @@ export const AppContextProvider = (props) => {
 
     const getCartCount = () => Object.values(cartItems).reduce((sum, item) => sum + item.quantity, 0);
     const getCartAmount = () => Object.values(cartItems).reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+    
+    const placeOrder = async (addressId) => {
+        if (!user) {
+            toast.error('Sipariş vermek için giriş yapmalısınız.');
+            router.push('/auth');
+            return;
+        }
+        if (Object.keys(cartItems).length === 0) {
+            toast.error('Sepetiniz boş.');
+            return;
+        }
+        const selectedAddress = addresses.find(addr => addr.id === addressId);
+        if (!selectedAddress) {
+            toast.error('Lütfen bir teslimat adresi seçin.');
+            return;
+        }
+
+        const toastId = toast.loading('Siparişiniz oluşturuluyor...');
+
+        try {
+            const { data: orderData, error: orderError } = await supabase
+                .from('orders')
+                .insert([{
+                    user_id: user.id,
+                    total_amount: getCartAmount(),
+                    address: selectedAddress,
+                    status: 'Hazırlanıyor'
+                }])
+                .select()
+                .single();
+
+            if (orderError) throw orderError;
+
+            const orderItems = Object.values(cartItems).map(item => ({
+                order_id: orderData.id,
+                product_id: item.product.id,
+                quantity: item.quantity,
+                price: item.product.price
+            }));
+
+            const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
+            if (itemsError) throw itemsError;
+
+            setCartItems({});
+            localStorage.removeItem('cartItems');
+            
+            toast.success('Siparişiniz başarıyla oluşturuldu!', { id: toastId });
+            router.push('/order-placed');
+
+        } catch (error) {
+            toast.error('Sipariş oluşturulurken bir hata oluştu: ' + error.message, { id: toastId });
+        }
+    };
 
     const value = {
         currency, router, products, loading, error, fetchProducts,
         cartItems, setCartItems, addToCart, updateCartQuantity, getCartCount, getCartAmount,
-        user, authLoading, isSeller, signUp, signIn, signOut
+        user, authLoading, isSeller, signUp, signIn, signOut,
+        addresses, fetchAddresses, addAddress,
+        placeOrder
     };
 
     return <AppContext.Provider value={value}>{props.children}</AppContext.Provider>;
 };
-
