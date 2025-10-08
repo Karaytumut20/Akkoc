@@ -15,10 +15,11 @@ export default function FeaturedCollections() {
   const fetchCollections = async () => {
     setLoading(true);
 
+    // DÜZELTME: Sorgudan artık var olmayan 'category' sütunu kaldırıldı.
     const { data, error } = await supabase
       .from('products')
-      .select('id, name, description, image_urls, doublebigcardtext, category')
-      .eq('doublebigcardtext', true); // sadece doublebigcard true olanlar
+      .select('id, name, description, image_urls, doublebigcardtext')
+      .eq('doublebigcardtext', true);
 
     if (error) {
       console.error('Ürünler alınamadı:', error.message);
@@ -28,20 +29,18 @@ export default function FeaturedCollections() {
     }
 
     if (!data || data.length < 2) {
-      // Eğer 2'den az ürün varsa ekrana hiçbir şey gösterme
       setCollections([]);
       setLoading(false);
       return;
     }
 
-    // JSON string olarak kaydedilmiş image_urls'i array'e çeviriyoruz
     const formattedData = data.map(item => ({
       id: item.id,
       title: item.name,
       description: item.description,
       image: item.image_urls && item.image_urls.length > 0
         ? (Array.isArray(item.image_urls) ? item.image_urls[0] : JSON.parse(item.image_urls)[0])
-        : '/assets/default.jpg', // varsayılan görsel
+        : '/assets/default.jpg',
       alt: item.name,
       linkText: 'DETAYLARI GÖR',
       linkHref: `/product/${item.id}`,
@@ -52,7 +51,7 @@ export default function FeaturedCollections() {
   };
 
   if (loading) return <div className="flex justify-center items-center h-60 text-lg text-gray-700">Yükleniyor...</div>;
-  if (collections.length === 0) return null; // 2'den az ürün varsa gösterme
+  if (collections.length === 0) return null;
 
   return (
     <section className="w-full bg-white py-12 sm:py-20">

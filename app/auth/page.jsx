@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useAppContext } from '@/context/AppContext';
 
 export default function AuthPage() {
+  // 1. Hata burada olabilir: useAppContext'ten 'signIn' fonksiyonunu aldığınızdan emin olun.
   const { signIn, signUp } = useAppContext();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -14,19 +15,15 @@ export default function AuthPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      // Hangi işlem (giriş veya kayıt) seçildiyse onu çağırıyoruz.
       if (isLogin) {
+        // 2. Hata burada olabilir: 'customerSignIn' yerine 'signIn' fonksiyonunu çağırın.
         await signIn(email, password);
       } else {
         await signUp(email, password);
       }
     } catch (error) {
-      // Beklenmedik bir hata olursa konsola yazdır.
-      // Kullanıcıya gösterilen hata mesajı zaten context içinde yönetiliyor.
       console.error("Authentication error:", error);
     } finally {
-      // Bu `finally` bloğu, işlem başarılı olsa da hata alsa da HER ZAMAN çalışır.
-      // Bu sayede "İşlem yapılıyor..." yazısının takılı kalmasını engelliyoruz.
       setLoading(false);
     }
   };

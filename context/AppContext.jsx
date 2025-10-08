@@ -74,11 +74,15 @@ export const AppContextProvider = (props) => {
     const isSeller = user?.role === 'seller';
     
     const signUp = async (email, password) => {
+        // Sadece kullanıcıyı kaydediyoruz. Profil oluşturma işlemi
+        // artık veritabanındaki tetikleyici tarafından otomatik olarak yapılıyor.
         const { error } = await supabase.auth.signUp({ email, password });
+        
         if (error) {
             toast.error(error.message);
             return; 
         }
+
         toast.success('Kayıt başarılı! Lütfen e-postanızı doğrulayın.');
         router.push('/');
     };
@@ -90,7 +94,7 @@ export const AppContextProvider = (props) => {
             return;
         }
         toast.success('Giriş başarılı!');
-        router.push('/');
+        // Otomatik yönlendirme kaldırıldı, artık bu işlemi çağıran sayfa/layout yönetecek.
     };
 
     const signOut = async () => {
