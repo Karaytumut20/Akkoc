@@ -1,22 +1,23 @@
+'use client';
+
 import React from 'react';
 import Link from 'next/link';
-import { assets } from '../../assets/assets';
-import Image from 'next/image';
 import { usePathname } from 'next/navigation';
+import { FiPlusSquare, FiList, FiBox } from 'react-icons/fi'; // react-icons kütüphanesinden ikonlar kullandım
 
 const SideBar = () => {
     const pathname = usePathname();
     const menuItems = [
-        { name: 'Add Product', path: '/seller', icon: assets.add_icon },
-        { name: 'Product List', path: '/seller/product-list', icon: assets.product_list_icon },
-        { name: 'Orders', path: '/seller/orders', icon: assets.order_icon },
-        { name: 'Category Add', path: '/seller/category-add', icon: assets.product_list_icon },
-
+        // 'Add Product' linkini /seller/add-product olarak güncelledim
+        { name: 'Add Product', path: '/seller/add-product', icon: <FiPlusSquare className="w-6 h-6" /> },
+        { name: 'Product List', path: '/seller/product-list', icon: <FiList className="w-6 h-6" /> },
+        { name: 'Orders', path: '/seller/orders', icon: <FiBox className="w-6 h-6" /> },
+        { name: 'Category Add', path: '/seller/category-add', icon: <FiList className="w-6 h-6" /> },
     ];
 
     return (
-        <div className='flex flex-col border-r min-h-screen border-gray-300 py-2
-                        w-16 md:w-64 transition-all duration-300'>
+        <div className='flex flex-col border-r min-h-screen bg-white border-gray-200 py-4
+                        w-20 md:w-64 transition-all duration-300'>
             {menuItems.map((item) => {
                 const isActive = pathname === item.path;
 
@@ -24,21 +25,15 @@ const SideBar = () => {
                     <Link href={item.path} key={item.name} passHref>
                         <div
                             className={
-                                `flex items-center py-3 px-4 gap-3 
+                                `flex items-center justify-center md:justify-start py-3 px-4 md:px-6 gap-4 my-1 mx-2 rounded-lg
                                 ${isActive
-                                    ? "border-r-4 md:border-r-[6px] bg-orange-600/10 border-orange-500/90"
-                                    : "hover:bg-gray-100/90 border-white"
+                                    ? "bg-orange-100 text-orange-600 font-semibold"
+                                    : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                                 }`
                             }
                         >
-                            <Image
-                                src={item.icon}
-                                alt={`${item.name.toLowerCase()}_icon`}
-                                width={28}
-                                height={28}
-                                className="flex-shrink-0"
-                            />
-                            <p className='md:block hidden text-center flex-1'>{item.name}</p>
+                            <div className="flex-shrink-0">{item.icon}</div>
+                            <p className='md:block hidden text-sm'>{item.name}</p>
                         </div>
                     </Link>
                 );

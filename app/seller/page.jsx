@@ -4,19 +4,21 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppContext } from '@/context/AppContext';
 import toast from 'react-hot-toast';
-import { supabase } from '@/lib/supabaseClient';
 
 export default function SellerLoginPage() {
-    const { user, isSeller, authLoading } = useAppContext();
+    const { signIn, user, isSeller, authLoading } = useAppContext();
     const router = useRouter();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
 
-    // Eğer kullanıcı zaten bir satıcı olarak giriş yapmışsa, doğrudan dashboard'a yönlendir.
+    // Oturum kontrolü ve yönlendirme
     useEffect(() => {
-        if (!authLoading && user && isSeller) {
-            router.push('/seller/dashboard/product-list');
+        if (!authLoading) {
+            if (user && isSeller) {
+                // Eğer kullanıcı zaten bir satıcıysa, onu doğrudan ürün listesine yönlendir.
+                router.replace('/seller/product-list');
+            }
         }
     }, [user, isSeller, authLoading, router]);
 
@@ -24,49 +26,29 @@ export default function SellerLoginPage() {
         e.preventDefault();
         setLoading(true);
 
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        const loggedInUser = await signIn(email, password);
 
-        if (error) {
-            toast.error("Giriş başarısız: " + error.message);
+        if (loggedInUser) {
+            // signIn fonksiyonu artık kullanıcıyı döndürüyor, role kontrolünü burada yapabiliriz.
+            // Ancak AppContext zaten bu kontrolü yapıyor ve isSeller state'ini güncelliyor.
+            // useEffect'in yönlendirmesini beklemek en temiz yol.
+            // Sadece başarılı giriş sonrası yönlendirme için bekleyelim.
+        } else {
+            // Giriş başarısızsa, signIn fonksiyonu zaten toast mesajı gösterdi.
             setLoading(false);
-            return;
         }
-
-        if (data.user) {
-            const { data: profile, error: profileError } = await supabase
-                .from('profiles')
-                .select('role')
-                .eq('id', data.user.id)
-                .single();
-
-            if (profileError) {
-                toast.error("Profil bilgisi alınamadı.");
-                await supabase.auth.signOut();
-                setLoading(false);
-                return;
-            }
-
-            if (profile && profile.role === 'seller') {
-                toast.success('Satıcı olarak giriş yapıldı!');
-                router.push('/seller/dashboard/product-list'); // Başarılı girişte korumalı alana yönlendir
-            } else {
-                toast.error('Bu alana sadece satıcılar giriş yapabilir.');
-                await supabase.auth.signOut();
-                setLoading(false);
-            }
-        }
+        // Başarılı girişten sonra useEffect yönlendirmeyi yapacak.
     };
 
-    // Eğer satıcı zaten giriş yapmışsa ve yönlendirme bekleniyorsa, boş bir ekran göster.
+    // Yönlendirme beklenirken veya yükleme sırasında bir yükleme ekranı göster.
     if (authLoading || (user && isSeller)) {
         return (
-             <div className="flex items-center justify-center h-screen bg-gray-50">
+             <div className="flex items-center justify-center h-screen bg-gray-50 text-gray-700">
                 Yönlendiriliyor...
             </div>
         );
     }
     
-    // Ana giriş formunu göster
     return (
         <div className="flex items-center justify-center min-h-screen bg-gray-50">
             <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">

@@ -3,6 +3,7 @@ import { useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import toast from "react-hot-toast";
+import { getSafeImageUrl } from "@/lib/utils";
 
 export const AppContext = createContext(undefined);
 
@@ -27,41 +28,40 @@ export const AppContextProvider = (props) => {
     const [authLoading, setAuthLoading] = useState(true);
     
     const [addresses, setAddresses] = useState([]);
+    const [myOrders, setMyOrders] = useState([]);
 
+    // AUTH STATE CHANGE LISTENER
     useEffect(() => {
-        const fetchUserAndProfile = async () => {
-            const { data: { user: authUser } } = await supabase.auth.getUser();
-
-            if (authUser) {
-                const { data: profile } = await supabase
-                    .from('profiles')
-                    .select('role')
-                    .eq('id', authUser.id)
-                    .single();
-                
-                setUser({ ...authUser, role: profile?.role || 'customer' });
-                fetchAddresses(authUser.id);
-            } else {
-                setUser(null);
+        const fetchUserSession = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) {
+                const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).maybeSingle();
+                const userData = { ...session.user, role: profile?.role || 'customer' };
+                setUser(userData);
+                await fetchAddresses(session.user.id);
+                if (profile?.role !== 'seller') {
+                    await fetchMyOrders(session.user.id);
+                }
             }
             setAuthLoading(false);
         };
 
-        fetchUserAndProfile();
+        fetchUserSession();
 
         const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
             const currentUser = session?.user;
-            if (currentUser) {
-                const { data: profile } = await supabase
-                    .from('profiles')
-                    .select('role')
-                    .eq('id', currentUser.id)
-                    .single();
-                setUser({ ...currentUser, role: profile?.role || 'customer' });
-                fetchAddresses(currentUser.id);
+             if (currentUser) {
+                const { data: profile } = await supabase.from('profiles').select('role').eq('id', currentUser.id).maybeSingle();
+                const userData = { ...currentUser, role: profile?.role || 'customer' };
+                setUser(userData);
+                await fetchAddresses(currentUser.id);
+                 if (profile?.role !== 'seller') {
+                    await fetchMyOrders(currentUser.id);
+                }
             } else {
                 setUser(null);
                 setAddresses([]);
+                setMyOrders([]);
             }
             setAuthLoading(false);
         });
@@ -73,28 +73,37 @@ export const AppContextProvider = (props) => {
 
     const isSeller = user?.role === 'seller';
     
+    // AUTH FUNCTIONS
     const signUp = async (email, password) => {
-        // Sadece kullanıcıyı kaydediyoruz. Profil oluşturma işlemi
-        // artık veritabanındaki tetikleyici tarafından otomatik olarak yapılıyor.
         const { error } = await supabase.auth.signUp({ email, password });
-        
         if (error) {
             toast.error(error.message);
-            return; 
+            return false;
         }
-
         toast.success('Kayıt başarılı! Lütfen e-postanızı doğrulayın.');
-        router.push('/');
+        return true;
     };
 
     const signIn = async (email, password) => {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data: signInData, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) {
             toast.error(error.message);
-            return;
+            return { user: null, profile: null, error };
         }
-        toast.success('Giriş başarılı!');
-        // Otomatik yönlendirme kaldırıldı, artık bu işlemi çağıran sayfa/layout yönetecek.
+        if (signInData.user) {
+            const { data: profile, error: profileError } = await supabase.from('profiles').select('role').eq('id', signInData.user.id).maybeSingle();
+            if (profileError) {
+                toast.error("Profil bilgisi alınamadı: " + profileError.message);
+                await supabase.auth.signOut();
+                return { user: null, profile: null, error: profileError };
+            }
+            const role = profile?.role || 'customer';
+            const userData = { ...signInData.user, role: role };
+            setUser(userData);
+            toast.success('Giriş başarılı!');
+            return { user: signInData.user, profile: { role }, error: null };
+        }
+        return { user: null, profile: null, error: new Error('Bilinmeyen bir hata oluştu.') };
     };
 
     const signOut = async () => {
@@ -102,23 +111,22 @@ export const AppContextProvider = (props) => {
         setCartItems({});
         setUser(null);
         setAddresses([]);
+        setMyOrders([]);
         router.push('/');
         toast.success('Başarıyla çıkış yapıldı.');
     };
     
+    // DATA FETCHING FUNCTIONS
     const fetchProducts = async () => {
         setLoading(true); setError(null);
-        const { data, error } = await supabase.from('products').select('*');
+        const { data, error } = await supabase.from('products').select('*, categories(name)');
         if (error) {
             setError(error.message); setProducts([]);
         } else {
-            const formattedProducts = (data || []).map(p => {
-                let imageUrls = [];
-                try {
-                    imageUrls = Array.isArray(p.image_urls) ? p.image_urls : JSON.parse(p.image_urls || '[]');
-                } catch {}
-                return { ...p, image_urls: imageUrls };
-            });
+            const formattedProducts = (data || []).map(p => ({
+                ...p,
+                image_urls: Array.isArray(p.image_urls) ? p.image_urls : [],
+            }));
             setProducts(formattedProducts);
         }
         setLoading(false);
@@ -127,18 +135,17 @@ export const AppContextProvider = (props) => {
     const fetchAddresses = async (userId) => {
         if (!userId) return;
         const { data, error } = await supabase.from('addresses').select('*').eq('user_id', userId).order('created_at', { ascending: false });
-        if (error) {
-            toast.error("Adresler alınamadı: " + error.message);
-        } else {
-            setAddresses(data || []);
-        }
+        if (!error) setAddresses(data || []);
+    };
+
+    const fetchMyOrders = async (userId) => {
+        if (!userId || isSeller) return;
+        const { data, error } = await supabase.from('orders').select(`*, order_items(*, products(*, categories(name)))`).eq('user_id', userId).order('created_at', { ascending: false });
+        if (!error) setMyOrders(data || []);
     };
 
     const addAddress = async (addressData) => {
-        if (!user) {
-            toast.error("Adres eklemek için giriş yapmalısınız.");
-            return;
-        }
+        if (!user) return toast.error("Adres eklemek için giriş yapmalısınız.");
         const toastId = toast.loading("Adresiniz ekleniyor...");
         try {
             const { error } = await supabase.from('addresses').insert({ ...addressData, user_id: user.id });
@@ -147,15 +154,22 @@ export const AppContextProvider = (props) => {
             toast.success("Adres başarıyla eklendi!", { id: toastId });
             router.back();
         } catch (error) {
-            toast.error("Adres eklenirken bir hata oluştu: " + error.message, { id: toastId });
+            toast.error("Adres eklenirken hata: " + error.message, { id: toastId });
         }
     };
 
-    useEffect(() => { fetchProducts(); }, []);
+    // CART & ORDER
     useEffect(() => {
         try { const storedCart = localStorage.getItem("cartItems"); if (storedCart) setCartItems(JSON.parse(storedCart)); } catch (e) { console.error(e); }
     }, []);
-    useEffect(() => { localStorage.setItem("cartItems", JSON.stringify(cartItems)); }, [cartItems]);
+
+    useEffect(() => {
+        if (Object.keys(cartItems).length > 0) {
+            localStorage.setItem("cartItems", JSON.stringify(cartItems));
+        } else {
+            localStorage.removeItem("cartItems");
+        }
+    }, [cartItems]);
 
     const addToCart = (product) => {
         setCartItems(prev => ({ ...prev, [product.id]: { product, quantity: (prev[product.id]?.quantity || 0) + 1 } }));
@@ -175,65 +189,39 @@ export const AppContextProvider = (props) => {
     const getCartAmount = () => Object.values(cartItems).reduce((sum, item) => sum + item.product.price * item.quantity, 0);
     
     const placeOrder = async (addressId) => {
-        if (!user) {
-            toast.error('Sipariş vermek için giriş yapmalısınız.');
-            router.push('/auth');
-            return;
-        }
-        if (Object.keys(cartItems).length === 0) {
-            toast.error('Sepetiniz boş.');
-            return;
-        }
+        if (!user) return toast.error('Sipariş vermek için giriş yapmalısınız.');
+        if (Object.keys(cartItems).length === 0) return toast.error('Sepetiniz boş.');
         const selectedAddress = addresses.find(addr => addr.id === addressId);
-        if (!selectedAddress) {
-            toast.error('Lütfen bir teslimat adresi seçin.');
-            return;
-        }
+        if (!selectedAddress) return toast.error('Lütfen bir teslimat adresi seçin.');
 
         const toastId = toast.loading('Siparişiniz oluşturuluyor...');
-
         try {
-            const { data: orderData, error: orderError } = await supabase
-                .from('orders')
-                .insert([{
-                    user_id: user.id,
-                    total_amount: getCartAmount(),
-                    address: selectedAddress,
-                    status: 'Hazırlanıyor'
-                }])
-                .select()
-                .single();
-
+            const { data: orderData, error: orderError } = await supabase.from('orders').insert([{ user_id: user.id, total_amount: getCartAmount(), address: selectedAddress, status: 'Hazırlanıyor' }]).select().single();
             if (orderError) throw orderError;
 
-            const orderItems = Object.values(cartItems).map(item => ({
-                order_id: orderData.id,
-                product_id: item.product.id,
-                quantity: item.quantity,
-                price: item.product.price
-            }));
-
+            const orderItems = Object.values(cartItems).map(item => ({ order_id: orderData.id, product_id: item.product.id, quantity: item.quantity, price: item.product.price }));
             const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
             if (itemsError) throw itemsError;
 
             setCartItems({});
-            localStorage.removeItem('cartItems');
-            
             toast.success('Siparişiniz başarıyla oluşturuldu!', { id: toastId });
             router.push('/order-placed');
-
         } catch (error) {
-            toast.error('Sipariş oluşturulurken bir hata oluştu: ' + error.message, { id: toastId });
+            toast.error('Sipariş hatası: ' + error.message, { id: toastId });
         }
     };
+
+    useEffect(() => { fetchProducts(); }, []);
 
     const value = {
         currency, router, products, loading, error, fetchProducts,
         cartItems, setCartItems, addToCart, updateCartQuantity, getCartCount, getCartAmount,
         user, authLoading, isSeller, signUp, signIn, signOut,
         addresses, fetchAddresses, addAddress,
-        placeOrder
+        myOrders, fetchMyOrders,
+        placeOrder, getSafeImageUrl
     };
 
     return <AppContext.Provider value={value}>{props.children}</AppContext.Provider>;
 };
+

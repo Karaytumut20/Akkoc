@@ -1,132 +1,91 @@
 'use client';
-import React, { useEffect, useState } from "react";
-import { assets } from "@/assets/assets";
-import Image from "next/image";
+import React, { useEffect } from "react";
 import { useAppContext } from "@/context/AppContext";
 import Loading from "@/components/Loading";
-import { supabase } from "@/lib/supabaseClient";
-import toast from "react-hot-toast";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
+import Image from "next/image";
+import { getSafeImageUrl } from "@/lib/utils";
+import { assets } from "@/assets/assets";
 
-const Orders = () => {
-    const { currency, isSeller } = useAppContext();
-    const [orders, setOrders] = useState([]);
-    const [loading, setLoading] = useState(true);
-
-    const orderStatuses = ["Hazırlanıyor", "Kargolandı", "Teslim Edildi", "İptal Edildi"];
-
-    const fetchSellerOrders = async () => {
-        if (!isSeller) {
-            setLoading(false);
-            return;
-        }
-
-        setLoading(true);
-        const { data, error } = await supabase
-            .from('orders')
-            .select(`
-                id,
-                created_at,
-                total_amount,
-                status,
-                address,
-                order_items (
-                    quantity,
-                    products ( name )
-                )
-            `)
-            .order('created_at', { ascending: false });
-
-        if (error) {
-            toast.error("Siparişler alınamadı: " + error.message);
-            setOrders([]);
-        } else {
-            setOrders(data || []);
-        }
-        setLoading(false);
-    };
+const MyOrders = () => {
+    const { currency, myOrders, fetchMyOrders, user, authLoading } = useAppContext();
 
     useEffect(() => {
-        fetchSellerOrders();
-    }, [isSeller]);
+        if (user) {
+            fetchMyOrders(user.id);
+        }
+    }, [user]);
 
-    const handleStatusChange = async (orderId, newStatus) => {
-        const toastId = toast.loading("Durum güncelleniyor...");
-        try {
-            const { error } = await supabase
-                .from('orders')
-                .update({ status: newStatus })
-                .eq('id', orderId);
-
-            if (error) throw error;
-            
-            // State'i de anında güncelle
-            setOrders(prevOrders =>
-                prevOrders.map(order =>
-                    order.id === orderId ? { ...order, status: newStatus } : order
-                )
-            );
-            toast.success("Sipariş durumu güncellendi.", { id: toastId });
-        } catch (error) {
-            toast.error("Güncelleme başarısız: " + error.message, { id: toastId });
+    // Sipariş durumuna göre renk belirleyen fonksiyon
+    const getStatusColor = (status) => {
+        switch (status) {
+            case 'Teslim Edildi': return 'bg-green-100 text-green-800';
+            case 'Kargolandı': return 'bg-blue-100 text-blue-800';
+            case 'İptal Edildi': return 'bg-red-100 text-red-800';
+            default: return 'bg-yellow-100 text-yellow-800'; // Hazırlanıyor
         }
     };
+    
+    if (authLoading) return <Loading />;
+    if (!user) return (
+        <>
+            <Navbar />
+            <div className="text-center py-20">Lütfen siparişlerinizi görmek için giriş yapın.</div>
+            <Footer />
+        </>
+    );
 
     return (
-        <div className="flex-1 h-screen overflow-y-auto flex flex-col text-sm">
-            {loading ? <Loading /> : (
-                <div className="p-4 sm:p-6 lg:p-10 space-y-5">
-                    <h2 className="text-2xl font-semibold text-gray-800">Gelen Siparişler</h2>
-                    {orders.length === 0 ? (
-                        <p className="text-center py-10 text-gray-500">Henüz hiç sipariş yok.</p>
-                    ) : (
-                        <div className="bg-white shadow-lg rounded-xl overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ürünler</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Adres</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tutar</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Durum</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                    {orders.map((order) => (
-                                        <tr key={order.id} className="hover:bg-gray-50 transition">
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <p className="font-medium text-gray-900">
-                                                    {order.order_items.map(item => `${item.products.name} x ${item.quantity}`).join(", ")}
-                                                </p>
-                                                <p className="text-xs text-gray-500">
-                                                    Toplam {order.order_items.reduce((sum, item) => sum + item.quantity, 0)} ürün
-                                                </p>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <p className="font-medium">{order.address.full_name}</p>
-                                                <p className="text-gray-600 text-xs">{`${order.address.area}, ${order.address.city}`}</p>
-                                                <p className="text-gray-600 text-xs">{order.address.phone_number}</p>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap font-medium">{currency}{order.total_amount.toFixed(2)}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <select
-                                                    value={order.status}
-                                                    onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                                                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-                                                >
-                                                    {orderStatuses.map(status => (
-                                                        <option key={status} value={status}>{status}</option>
-                                                    ))}
-                                                </select>
-                                            </td>
-                                        </tr>
+        <>
+            <Navbar />
+            <div className="min-h-[70vh] px-4 sm:px-6 md:px-16 lg:px-32 py-10">
+                <h1 className="text-2xl sm:text-3xl font-semibold mb-8 text-gray-800 border-b pb-4">Siparişlerim</h1>
+                {myOrders.length === 0 ? (
+                    <div className="text-center py-16 text-gray-500">
+                        <p>Henüz hiç sipariş vermediniz.</p>
+                    </div>
+                ) : (
+                    <div className="space-y-6">
+                        {myOrders.map(order => (
+                            <div key={order.id} className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 sm:p-6">
+                                <div className="flex flex-wrap justify-between items-start gap-4 mb-4">
+                                    <div>
+                                        <p className="font-bold text-gray-800">Sipariş ID: #{order.id.slice(0, 8)}</p>
+                                        <p className="text-sm text-gray-500">{new Date(order.created_at).toLocaleDateString()}</p>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        <p className="font-semibold text-lg">{currency}{order.total_amount.toFixed(2)}</p>
+                                        <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(order.status)}`}>
+                                            {order.status}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className="border-t pt-4 mt-4">
+                                    {order.order_items.map(item => (
+                                        <div key={item.id} className="flex items-center gap-4 mb-3">
+                                            <Image 
+                                                src={getSafeImageUrl(item.products.image_urls)}
+                                                alt={item.products.name}
+                                                width={64}
+                                                height={64}
+                                                className="rounded-md object-cover w-16 h-16"
+                                            />
+                                            <div>
+                                                <p className="font-medium text-gray-800">{item.products.name}</p>
+                                                <p className="text-sm text-gray-600">{item.quantity} x {currency}{item.price.toFixed(2)}</p>
+                                            </div>
+                                        </div>
                                     ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                </div>
-            )}
-        </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+            <Footer />
+        </>
     );
 };
 
-export default Orders;
+export default MyOrders;

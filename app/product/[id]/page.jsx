@@ -1,6 +1,5 @@
 "use client"
 import { useEffect, useState } from "react";
-import { assets } from "@/assets/assets";
 import ProductCard from "@/components/ProductCard";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -13,20 +12,12 @@ import React from "react";
 
 const Product = () => {
     const { id } = useParams();
-    const { router, addToCart, products: allProducts } = useAppContext();
+    const { router, addToCart, products: allProducts, getSafeImageUrl } = useAppContext();
 
     const [mainImage, setMainImage] = useState(null);
     const [productData, setProductData] = useState(null);
     const [relatedProducts, setRelatedProducts] = useState([]);
     const [loading, setLoading] = useState(true);
-
-    // Güvenli resim URL'i alma fonksiyonu
-    const getSafeImageUrl = (urls, index = 0) => {
-        if (Array.isArray(urls) && urls[index]) {
-            return urls[index];
-        }
-        return '/assets/placeholder.jpg';
-    };
 
     useEffect(() => {
         const fetchProductData = async () => {
@@ -34,7 +25,7 @@ const Product = () => {
             setLoading(true);
             const { data, error } = await supabase
                 .from('products')
-                .select('*')
+                .select('*, categories(name)') // Kategori adını da çekiyoruz
                 .eq('id', id)
                 .single();
 
@@ -42,14 +33,11 @@ const Product = () => {
                 console.error("Ürün alınamadı:", error.message);
                 setProductData(null);
             } else {
-                let imageUrls = [];
-                if (data.image_urls) {
-                    try {
-                        const parsed = JSON.parse(data.image_urls);
-                        if (Array.isArray(parsed)) imageUrls = parsed;
-                    } catch {
-                        if(Array.isArray(data.image_urls)) imageUrls = data.image_urls;
-                    }
+                 let imageUrls = [];
+                if (typeof data.image_urls === 'string') {
+                    try { imageUrls = JSON.parse(data.image_urls); } catch { imageUrls = []; }
+                } else if (Array.isArray(data.image_urls)) {
+                    imageUrls = data.image_urls;
                 }
                 const formatted = { ...data, image_urls: imageUrls };
                 setProductData(formatted);
@@ -63,7 +51,10 @@ const Product = () => {
 
     useEffect(() => {
         if (productData && allProducts.length > 0) {
-            setRelatedProducts(allProducts.filter(p => p.category === productData.category && p.id !== productData.id).slice(0, 5));
+            // İlgili ürünleri kategori ID'sine göre filtrele
+            setRelatedProducts(
+                allProducts.filter(p => p.category_id === productData.category_id && p.id !== productData.id).slice(0, 5)
+            );
         }
     }, [productData, allProducts]);
 
@@ -80,7 +71,7 @@ const Product = () => {
                                 src={mainImage}
                                 alt={productData.name}
                                 fill
-                                className="object-cover"
+                                className="object-contain" // contain olarak değiştirildi
                                 sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
                             />
                         </div>
@@ -89,13 +80,13 @@ const Product = () => {
                                 <div
                                     key={index}
                                     onClick={() => setMainImage(image)}
-                                    className="cursor-pointer rounded-lg overflow-hidden bg-gray-100 w-full aspect-[3.2/4] relative"
+                                    className={`cursor-pointer rounded-lg overflow-hidden bg-gray-100 w-full aspect-[3.2/4] relative border-2 ${mainImage === image ? 'border-orange-500' : 'border-transparent'}`}
                                 >
                                     <Image
                                         src={image}
                                         alt={`${productData.name} ${index + 1}`}
                                         fill
-                                        className="object-cover"
+                                        className="object-contain" // contain olarak değiştirildi
                                         sizes="(max-width: 768px) 33vw, (max-width: 1280px) 25vw, 20vw"
                                     />
                                 </div>
@@ -117,34 +108,37 @@ const Product = () => {
                         <table className="table-auto border-collapse w-full max-w-72">
                             <tbody>
                                 <tr>
-                                    <td className="text-gray-600 font-medium pr-4">Category</td>
-                                    <td className="text-gray-800/50">{productData.category}</td>
+                                    <td className="text-gray-600 font-medium pr-4">Kategori</td>
+                                    {/* Kategori adını ilişkili tablodan al */}
+                                    <td className="text-gray-800/50">{productData.categories?.name || 'Belirtilmemiş'}</td>
                                 </tr>
                             </tbody>
                         </table>
                         <div className="flex flex-col sm:flex-row items-center mt-10 gap-4">
-                            <button onClick={() => addToCart(productData)} className="w-full sm:w-auto flex-1 py-3.5 bg-gray-100 text-gray-800/80 hover:bg-gray-200 transition rounded-md">
-                                Add to Cart
+                            <button onClick={() => addToCart(productData)} className="w-full sm:w-auto flex-1 py-3.5 bg-gray-100 text-gray-800/80 hover:bg-gray-200 transition rounded-md font-semibold">
+                                Sepete Ekle
                             </button>
                             <button
                                 onClick={() => { addToCart(productData); router.push('/cart'); }}
-                                className="w-full sm:w-auto flex-1 py-3.5 bg-orange-500 text-white hover:bg-orange-600 transition rounded-md"
+                                className="w-full sm:w-auto flex-1 py-3.5 bg-orange-500 text-white hover:bg-orange-600 transition rounded-md font-semibold"
                             >
-                                Buy now
+                                Hemen Al
                             </button>
                         </div>
                     </div>
                 </div>
 
-                <div className="flex flex-col items-center">
-                    <div className="flex flex-col items-center mb-4 mt-16">
-                        <p className="text-3xl font-medium">İlgili <span className="font-medium text-orange-600">Ürünler</span></p>
-                        <div className="w-28 h-0.5 bg-orange-600 mt-2"></div>
+                {relatedProducts.length > 0 && (
+                    <div className="flex flex-col items-center">
+                        <div className="flex flex-col items-center mb-4 mt-16">
+                            <p className="text-3xl font-medium">İlgili <span className="font-medium text-orange-600">Ürünler</span></p>
+                            <div className="w-28 h-0.5 bg-orange-600 mt-2"></div>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 mt-6 pb-14 w-full">
+                            {relatedProducts.map((product, index) => <ProductCard key={index} product={product} />)}
+                        </div>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 mt-6 pb-14 w-full">
-                        {relatedProducts.map((product, index) => <ProductCard key={index} product={product} />)}
-                    </div>
-                </div>
+                )}
             </div>
             <Footer />
         </>
