@@ -9,33 +9,27 @@ import Loading from '@/components/Loading';
 
 // Ana SellerLayout Bileşeni
 const SellerLayout = ({ children }) => {
-    const { user, isSeller, authLoading } = useAppContext();
+    const { user, authLoading } = useAppContext(); // isSeller kaldırıldı
     const router = useRouter();
     const pathname = usePathname();
 
     useEffect(() => {
-        // Kimlik doğrulama durumu çözümlenene kadar yönlendirme yapma.
+        // Kimlik doğrulama durumu çözümlenene kadar bekle.
         if (authLoading) {
             return;
         }
 
         const isLoginPage = pathname === '/seller';
 
-        // Yönlendirme Mantığı
-        if (isLoginPage && user && isSeller) {
-            // Giriş yapmış bir satıcı, giriş sayfasındaysa panele yönlendirilir.
+        // Giriş yapmış bir kullanıcı, /seller sayfasındaysa panele yönlendirilir.
+        if (isLoginPage && user) {
             router.replace('/seller/product-list');
-        } else if (!isLoginPage && (!user || !isSeller)) {
-            // Korumalı bir sayfada yetkisiz bir kullanıcı varsa:
-            // Giriş yapmamışsa -> /seller'a yönlendir.
-            // Giriş yapmış ama satıcı değilse -> ana sayfaya (/) yönlendir.
-            if (!user) {
-                router.replace('/seller');
-            } else if (!isSeller) {
-                router.replace('/');
-            }
+        } 
+        // Korumalı bir sayfada giriş yapmamış bir kullanıcı varsa, ana giriş sayfasına yönlendir.
+        else if (!isLoginPage && !user) {
+            router.replace('/auth');
         }
-    }, [authLoading, user, isSeller, pathname, router]);
+    }, [authLoading, user, pathname, router]);
 
     // Kimlik doğrulama durumu kontrol edilirken her zaman yükleme ekranı göster.
     if (authLoading) {
@@ -44,8 +38,8 @@ const SellerLayout = ({ children }) => {
 
     const isLoginPage = pathname === '/seller';
 
-    // Korumalı bir sayfada olan yetkili bir satıcı için panel arayüzünü göster.
-    if (!isLoginPage && isSeller) {
+    // Korumalı bir sayfada olan ve giriş yapmış herhangi bir kullanıcı için panel arayüzünü göster.
+    if (!isLoginPage && user) {
         return (
             <div className="min-h-screen flex flex-col bg-gray-50">
                 <SellerNavbar />
@@ -57,15 +51,13 @@ const SellerLayout = ({ children }) => {
         );
     }
     
-    // Giriş sayfasındaysa, sayfanın kendi içeriğini göster.
+    // Giriş sayfasındaysa (ve kullanıcı giriş yapmamışsa), sayfanın kendi içeriğini göster.
     if (isLoginPage) {
         return <>{children}</>;
     }
 
-    // Diğer tüm durumlarda (örn. yönlendirme gerçekleşene kadar)
-    // yanlış içeriğin anlık görünmesini engellemek için yükleme ekranı göster.
+    // Diğer tüm durumlarda (örn. yönlendirme gerçekleşene kadar) yükleme ekranı göster.
     return <Loading />;
 };
 
 export default SellerLayout;
-

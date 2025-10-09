@@ -1,7 +1,7 @@
 'use client'
 // Bu dosya, uygulamanın genel state yönetimini ve kimlik doğrulama (authentication)
-// işlemlerini yöneten ana context dosyasıdır. İstekleriniz doğrultusunda, seller (satıcı)
-// sayfası için özel oturum yönetimi eklenmiş ve güvenlik artırılmıştır.
+// işlemlerini yöneten ana context dosyasıdır. İstekleriniz doğrultusunda, rol (seller/customer)
+// ayrımı tamamen kaldırılmış ve daha basit bir yapıya geçilmiştir.
 
 import { useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useState, useRef, useCallback } from "react";
@@ -34,38 +34,23 @@ export const AppContextProvider = (props) => {
     const [addresses, setAddresses] = useState([]);
     const [myOrders, setMyOrders] = useState([]);
     
-    // Oturum zaman aşımı için referans
     const inactivityTimer = useRef(null);
 
-    // Otomatik çıkış fonksiyonu
     const signOutAfterInactivity = useCallback(() => {
         toast('Oturum süreniz doldu, otomatik olarak çıkış yapıldı.', { icon: '👋' });
         supabase.auth.signOut();
-        setCartItems({});
-        setUser(null);
-        setAddresses([]);
-        setMyOrders([]);
-        // Kullanıcıyı rolüne göre doğru giriş sayfasına yönlendir
-        if (window.location.pathname.startsWith('/seller')) {
-            router.push('/seller');
-        } else {
-            router.push('/auth');
-        }
-    }, [router]);
+    }, []);
 
-    // Oturum zamanlayıcısını sıfırlayan fonksiyon
     const resetInactivityTimer = useCallback(() => {
         clearTimeout(inactivityTimer.current);
         inactivityTimer.current = setTimeout(signOutAfterInactivity, 10 * 60 * 1000); // 10 dakika
     }, [signOutAfterInactivity]);
 
-
-    // Kullanıcı aktivitesini dinleyip zamanlayıcıyı sıfırlama
     useEffect(() => {
         if (user) {
             const events = ['mousemove', 'mousedown', 'keypress', 'touchstart', 'scroll'];
             events.forEach(event => window.addEventListener(event, resetInactivityTimer));
-            resetInactivityTimer(); // İlk zamanlayıcıyı başlat
+            resetInactivityTimer();
 
             return () => {
                 events.forEach(event => window.removeEventListener(event, resetInactivityTimer));
@@ -74,32 +59,15 @@ export const AppContextProvider = (props) => {
         }
     }, [user, resetInactivityTimer]);
 
-
-    // AUTH STATE CHANGE LISTENER (Oturum kalıcılığı için)
+    // AUTH STATE CHANGE LISTENER (Oturum yönetimi)
     useEffect(() => {
         setAuthLoading(true);
-        const fetchUserSession = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.user) {
-                const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
-                const role = profile?.role || 'customer';
-                const userData = { ...session.user, role };
-                setUser(userData);
-            }
-            setAuthLoading(false);
-        };
-
-        fetchUserSession();
-
         const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
             const currentUser = session?.user;
-             if (currentUser) {
-                const { data: profile } = await supabase.from('profiles').select('role').eq('id', currentUser.id).single();
-                const role = profile?.role || 'customer';
-                const userData = { ...currentUser, role };
-                setUser(userData);
-            } else {
-                setUser(null);
+            setUser(currentUser || null); // Rol bilgisi olmadan sadece kullanıcıyı set et
+            if (!currentUser) {
+                // Kullanıcı çıkış yaptığında ilgili state'leri temizle
+                setCartItems({});
                 setAddresses([]);
                 setMyOrders([]);
             }
@@ -110,101 +78,42 @@ export const AppContextProvider = (props) => {
             authListener.subscription.unsubscribe();
         };
     }, []);
-
-    // isSeller state'i
-    const isSeller = user?.role === 'seller';
     
-    // AUTH FUNCTIONS
+    // AUTH FUNCTIONS (Rol mantığı kaldırıldı)
     const signUp = async (email, password) => {
-        const { data: signUpData, error } = await supabase.auth.signUp({ email, password });
+        const { error } = await supabase.auth.signUp({ email, password });
         if (error) {
             toast.error(error.message);
             return false;
         }
-        
-        if (signUpData.user) {
-            const { error: profileError } = await supabase
-                .from('profiles')
-                .insert([{ id: signUpData.user.id, role: 'customer' }]);
-            
-            if (profileError) {
-                 console.error("Profil (Rol) atama hatası:", profileError.message);
-            }
-        }
-
+        // Profil tablosuna rol ekleme işlemi kaldırıldı
         toast.success('Kayıt başarılı! Lütfen e-postanızı doğrulayın.');
         return true;
     };
 
-    // GÜNCELLENMİŞ SIGN IN FONKSİYONU
-    const signIn = async (email, password, source = 'customer') => {
+    const signIn = async (email, password, source) => {
         const { data: signInData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
         
         if (authError) {
             toast.error('Kullanıcı adı veya parola hatalı.');
-            return null;
+            return;
         }
         
         if (signInData.user) {
-            const { data: profile, error: profileError } = await supabase.from('profiles').select('role').eq('id', signInData.user.id).single();
-            
-            if (profileError || !profile) {
-                toast.error("Giriş başarılı, ancak profil bilgisi alınamadı.");
-                await supabase.auth.signOut();
-                return null;
-            }
-            
-            const role = profile.role;
-
-            // Satıcı giriş sayfasından sadece satıcılar girebilir
-            if (source === 'seller' && role !== 'seller') {
-                toast.error('Bu alan sadece satıcılara özeldir.');
-                await supabase.auth.signOut();
-                return null;
-            }
-            
-            // Müşteri giriş sayfasından sadece müşteriler girebilir
-            if (source === 'customer' && role === 'seller') {
-                toast.error('Satıcılar bu sayfadan giriş yapamaz. Lütfen satıcı panelini kullanın.');
-                await supabase.auth.signOut();
-                return null;
-            }
-            
-            const userData = { ...signInData.user, role };
-            setUser(userData); // Bu state güncellemesi onAuthStateChange'i tetikleyecek
             toast.success('Giriş başarılı!');
-
-            if (role === 'seller') {
+            // Rol kontrolü yok, sadece nereden giriş yapıldığına göre yönlendir
+            if (source === 'seller') {
                 router.push('/seller/product-list');
             } else {
                 router.push('/');
             }
-
-            return userData;
         }
-        
-        return null;
     };
 
     const signOut = useCallback(async () => {
-        const currentPath = window.location.pathname;
         await supabase.auth.signOut();
-        
-        // Timer'ı temizle
         clearTimeout(inactivityTimer.current);
-
-        // State'leri sıfırla
-        setCartItems({});
-        setUser(null);
-        setAddresses([]);
-        setMyOrders([]);
-        
-        // Yönlendirme yap
-        if (currentPath.startsWith('/seller')) {
-            router.push('/seller');
-        } else {
-            router.push('/');
-        }
+        router.push('/'); // Çıkış yapınca ana sayfaya yönlendir
         toast.success('Başarıyla çıkış yapıldı.');
     }, [router]);
     
@@ -231,7 +140,7 @@ export const AppContextProvider = (props) => {
     };
 
     const fetchMyOrders = async (userId) => {
-        if (!userId || isSeller) return;
+        if (!userId) return;
         const { data, error } = await supabase.from('orders').select(`*, order_items(*, products(*, categories(name)))`).eq('user_id', userId).order('created_at', { ascending: false });
         if (!error) setMyOrders(data || []);
     };
@@ -314,7 +223,7 @@ export const AppContextProvider = (props) => {
     const value = {
         currency, router, products, loading, error, fetchProducts,
         cartItems, setCartItems, addToCart, updateCartQuantity, getCartCount, getCartAmount,
-        user, authLoading, isSeller, signUp, signIn, signOut,
+        user, authLoading, signUp, signIn, signOut, // isSeller kaldırıldı
         addresses, fetchAddresses, addAddress,
         myOrders, fetchMyOrders,
         placeOrder, getSafeImageUrl

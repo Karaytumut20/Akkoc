@@ -1,64 +1,32 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { useAppContext } from '@/context/AppContext';
-import { supabase } from '@/lib/supabaseClient'; // Hata düzeltmesi için eklendi
 
 export default function SellerLoginPage() {
-    // signOut fonksiyonu useAppContext'ten çıkarıldı, çünkü burada özel bir kullanım gerekiyor.
-    const { signIn, user, isSeller, authLoading } = useAppContext();
-    const router = useRouter();
+    const { signIn } = useAppContext();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
-
-    // Oturum kontrolü ve yönlendirme
-    useEffect(() => {
-        if (authLoading) {
-            return; // Oturum bilgisi yüklenene kadar bekle
-        }
-
-        if (user) {
-            if (isSeller) {
-                // Eğer kullanıcı zaten bir satıcıysa, onu doğrudan ürün listesine yönlendir.
-                router.replace('/seller/product-list');
-            } else {
-                // HATA DÜZELTMESİ: Eğer giriş yapan kullanıcı satıcı değilse,
-                // oturumu kapatıp müşteri giriş sayfasına yönlendirerek sonsuz döngüyü engelle.
-                const handleNonSeller = async () => {
-                    await supabase.auth.signOut();
-                    router.replace('/auth'); // Satıcı olmayanları müşteri girişine yönlendir
-                };
-                handleNonSeller();
-            }
-        }
-    }, [user, isSeller, authLoading, router]);
+    
+    // Not: Yönlendirme mantığı artık app/seller/layout.jsx içinde yönetiliyor.
+    // Bu sayfa sadece giriş yapmamış kullanıcılara gösterilecektir.
 
     const handleSellerLogin = async (e) => {
         e.preventDefault();
         setLoading(true);
-        // signIn fonksiyonuna 'seller' parametresi göndererek sadece satıcıların giriş yapmasını sağla
+        // signIn fonksiyonuna 'seller' parametresi göndererek giriş sonrası doğru yönlendirmeyi sağla
         await signIn(email, password, 'seller');
         setLoading(false);
     };
-
-    // Yönlendirme veya oturum kontrolü sırasında bir yükleme ekranı göstererek arayüzün anlık görünmesini engelle.
-    if (authLoading || user) {
-        return (
-             <div className="flex items-center justify-center h-screen bg-gray-50 text-gray-700">
-                Oturum kontrol ediliyor ve yönlendiriliyor...
-            </div>
-        );
-    }
     
-    // Sadece oturum açık değilse ve yükleme bittiyse giriş formunu göster.
     return (
         <div className="flex items-center justify-center min-h-screen bg-gray-50">
             <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
                 <h2 className="text-2xl font-bold text-center text-gray-900">
-                    Satıcı Paneli Girişi
+                    Panele Giriş Yap
                 </h2>
+                <p className="text-center text-gray-600">Giriş yaptıktan sonra panele yönlendirileceksiniz.</p>
                 <form className="space-y-6" onSubmit={handleSellerLogin}>
                     <div>
                         <label htmlFor="email" className="text-sm font-medium text-gray-700">E-posta Adresi</label>
@@ -79,4 +47,3 @@ export default function SellerLoginPage() {
         </div>
     );
 }
-

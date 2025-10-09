@@ -6,16 +6,21 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Image from "next/image";
 import { getSafeImageUrl } from "@/lib/utils";
-import { assets } from "@/assets/assets";
 
 const MyOrders = () => {
-    const { currency, myOrders, fetchMyOrders, user, authLoading } = useAppContext();
+    const { currency, myOrders, fetchMyOrders, user, authLoading, isSeller, isAdmin, router } = useAppContext();
 
     useEffect(() => {
-        if (user) {
+        // Yetkisiz rol kontrolü
+        if (!authLoading && (isSeller || isAdmin)) {
+            router.replace('/');
+            return;
+        }
+
+        if (user && !isSeller && !isAdmin) {
             fetchMyOrders(user.id);
         }
-    }, [user]);
+    }, [user, isSeller, isAdmin, authLoading]);
 
     // Sipariş durumuna göre renk belirleyen fonksiyon
     const getStatusColor = (status) => {
@@ -27,11 +32,12 @@ const MyOrders = () => {
         }
     };
     
-    if (authLoading) return <Loading />;
+    // Yetkili olmayan kullanıcılar için yönlendirme sonrası yükleme veya giriş ekranı
+    if (authLoading || isSeller || isAdmin) return <Loading />;
     if (!user) return (
         <>
             <Navbar />
-            <div className="text-center py-20">Lütfen siparişlerinizi görmek için giriş yapın.</div>
+            <div className="text-center py-20 min-h-[70vh]">Lütfen siparişlerinizi görmek için giriş yapın.</div>
             <Footer />
         </>
     );

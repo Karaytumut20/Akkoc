@@ -15,8 +15,8 @@ export default function AuthPage() {
     setLoading(true);
     try {
       if (isLogin) {
-        // signIn fonksiyonuna 'customer' parametresi göndererek sadece müşterilerin giriş yapmasını sağla
-        await signIn(email, password, 'customer');
+        // Rol ayrımı olmadan genel giriş fonksiyonunu çağır
+        await signIn(email, password, 'customer'); // 'customer' parametresi ana sayfaya yönlendirme için kullanılır
       } else {
         await signUp(email, password);
       }
