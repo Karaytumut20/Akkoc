@@ -273,7 +273,6 @@ export const AppContextProvider = (props) => {
             toast.error('Sipariş hatası: ' + error.message, { id: toastId });
         }
     };
-
     useEffect(() => { fetchProducts(); }, []);
 
     const value = {
