@@ -1,7 +1,6 @@
 "use client"
 import { useEffect, useState } from "react";
 import ProductCard from "@/components/ProductCard";
-import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Image from "next/image";
 import { useParams } from "next/navigation";
@@ -62,7 +61,6 @@ const Product = () => {
 
     return (
         <>
-            <Navbar />
             <div className="px-4 sm:px-6 md:px-16 lg:px-32 pt-14 space-y-10">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16">
                     <div className="px-2 md:px-5 lg:px-16 xl:px-20">

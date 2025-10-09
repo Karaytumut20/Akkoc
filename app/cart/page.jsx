@@ -1,17 +1,17 @@
+// app/cart/page.jsx
+
 'use client'
 import React from "react";
-import Navbar from "@/components/Navbar";
 import OrderSummary from "@/components/OrderSummary";
+// Navbar import'u ve kullanımı kaldırıldı
 
 const Cart = () => {
   return (
-    <>
-      <Navbar />
-      <div className="flex justify-center px-6 md:px-16 lg:px-32 pt-14 mb-20">
-        {/* Sadece Order Summary */}
-        <OrderSummary />
-      </div>
-    </>
+    // pt-28 (padding-top) eklendi
+    <div className="pt-28 flex justify-center px-6 md:px-16 lg:px-32 py-14 mb-20">
+      {/* Sadece Order Summary */}
+      <OrderSummary />
+    </div>
   );
 };
 

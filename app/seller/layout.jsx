@@ -2,7 +2,6 @@
 
 import React, { useEffect } from 'react';
 import { useAppContext } from '@/context/AppContext';
-import SellerNavbar from '@/components/seller/Navbar';
 import SellerSidebar from '@/components/seller/Sidebar';
 import { useRouter, usePathname } from 'next/navigation';
 import Loading from '@/components/Loading'; 
@@ -42,7 +41,6 @@ const SellerLayout = ({ children }) => {
     if (!isLoginPage && user) {
         return (
             <div className="min-h-screen flex flex-col bg-gray-50">
-                <SellerNavbar />
                 <div className="flex w-full">
                     <SellerSidebar />
                     <main className="flex-1 p-4 sm:p-6">{children}</main>

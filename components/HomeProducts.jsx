@@ -9,7 +9,6 @@ const HomeProducts = () => {
   const { products, router, loading: productsLoading } = useAppContext();
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [sortOption, setSortOption] = useState('default');
   
   // Anasayfada gösterilecek ürün sayısı
   const HOME_PRODUCT_LIMIT = 10;
@@ -26,7 +25,7 @@ const HomeProducts = () => {
   }, []);
 
   // Filtrelenmiş ve sıralanmış ürünleri hesaplayalım
-  const filteredAndSortedProducts = useMemo(() => {
+  const filteredProducts = useMemo(() => {
     let processedProducts = [...products];
 
     // Kategoriye göre filtrele
@@ -34,24 +33,11 @@ const HomeProducts = () => {
         processedProducts = processedProducts.filter(p => p.category_id === selectedCategory);
     }
 
-    // Fiyata göre sırala
-    switch (sortOption) {
-        case 'price-asc':
-            processedProducts.sort((a, b) => a.price - b.price);
-            break;
-        case 'price-desc':
-            processedProducts.sort((a, b) => b.price - a.price);
-            break;
-        default:
-            // Varsayılan sıralama
-            break;
-    }
-
     return processedProducts;
-  }, [products, selectedCategory, sortOption]);
+  }, [products, selectedCategory]);
 
   // Anasayfada gösterilecek ürünleri limitleyelim
-  const productsToShow = filteredAndSortedProducts.slice(0, HOME_PRODUCT_LIMIT);
+  const productsToShow = filteredProducts.slice(0, HOME_PRODUCT_LIMIT);
 
   if (productsLoading) {
       return <Loading />
@@ -79,15 +65,6 @@ const HomeProducts = () => {
                     <option key={cat.id} value={cat.id}>{cat.name}</option>
                 ))}
             </select>
-            <select
-                value={sortOption}
-                onChange={(e) => setSortOption(e.target.value)}
-                className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-orange-500 w-full sm:w-40"
-            >
-                <option value="default">Sırala</option>
-                <option value="price-asc">Fiyata Göre Artan</option>
-                <option value="price-desc">Fiyata Göre Azalan</option>
-            </select>
         </div>
       </div>
 
@@ -104,7 +81,7 @@ const HomeProducts = () => {
       )}
 
       {/* Eğer daha fazla ürün varsa "Tüm Ürünleri Gör" butonu gösterilir */}
-      {filteredAndSortedProducts.length > HOME_PRODUCT_LIMIT && (
+      {filteredProducts.length > HOME_PRODUCT_LIMIT && (
         <div className="mt-16 w-full flex justify-center">
            <button
               onClick={() => router.push("/all-products")}

@@ -2,7 +2,6 @@
 import React, { useEffect } from "react";
 import { useAppContext } from "@/context/AppContext";
 import Loading from "@/components/Loading";
-import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Image from "next/image";
 import { getSafeImageUrl } from "@/lib/utils";
@@ -36,7 +35,6 @@ const MyOrders = () => {
     if (authLoading || isSeller || isAdmin) return <Loading />;
     if (!user) return (
         <>
-            <Navbar />
             <div className="text-center py-20 min-h-[70vh]">Lütfen siparişlerinizi görmek için giriş yapın.</div>
             <Footer />
         </>
@@ -44,7 +42,6 @@ const MyOrders = () => {
 
     return (
         <>
-            <Navbar />
             <div className="min-h-[70vh] px-4 sm:px-6 md:px-16 lg:px-32 py-10">
                 <h1 className="text-2xl sm:text-3xl font-semibold mb-8 text-gray-800 border-b pb-4">Siparişlerim</h1>
                 {myOrders.length === 0 ? (
