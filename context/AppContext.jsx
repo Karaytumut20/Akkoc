@@ -115,42 +115,48 @@ export const AppContextProvider = (props) => {
         return true;
     };
 
+    // GÜNCELLENMİŞ SIGN IN FONKSİYONU
     const signIn = async (email, password) => {
-        const { data: signInData, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) {
-            toast.error(error.message);
-            return { user: null, profile: null, error };
+        // Önce Supabase ile giriş yapmayı dene
+        const { data: signInData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+        
+        if (authError) {
+            // Kimlik doğrulama başarısız olursa (yanlış şifre/email), Supabase zaten hata mesajı döner.
+            toast.error('Kullanıcı adı veya parola hatalı.');
+            return { user: null, profile: null, error: authError };
         }
         
-        // 1. Giriş başarılı, şimdi profil rolünü kontrol et.
+        // Giriş başarılı, şimdi profil rolünü kontrol et.
         if (signInData.user) {
             const { data: profile, error: profileError } = await supabase.from('profiles').select('role').eq('id', signInData.user.id).maybeSingle();
             
             if (profileError) {
-                toast.error("Profil bilgisi alınamadı: " + profileError.message);
-                await supabase.auth.signOut(); // Güvenlik için oturumu kapat
+                // Profil verisi alınamazsa genel hata göster ve oturumu kapatma.
+                toast.error("Giriş başarılı, ancak profil bilgisi alınamadı. Lütfen daha sonra tekrar deneyin.");
                 return { user: null, profile: null, error: profileError };
             }
             
             const role = profile?.role || 'customer';
 
-            // 2. YALNIZCA /auth SAYFASINDAKİ GİRİŞ İÇİN ROL KONTROLÜ
-            // Not: Satıcı girişi için '/seller' sayfasında özel bir form olmalıdır.
-            if (window.location.pathname.startsWith('/auth') && role === 'seller') {
-                toast.error('Satıcılar bu alandan giriş yapamaz. Lütfen satıcı paneli giriş sayfasını kullanın.');
-                await supabase.auth.signOut(); // Satıcı oturumunu kapat
+            // Rol kontrolü: Müşteri giriş sayfasındayken satıcı girişi engelleniyor.
+            // window.location.pathname'i kontrol ederek, sadece ana giriş sayfasında bu kısıtlamayı uyguluyoruz.
+            if (window.location.pathname === '/auth' && role === 'seller') {
+                // Satıcıysa hata verip oturumu hemen kapat.
+                await supabase.auth.signOut(); 
                 setUser(null);
-                return { user: null, profile: null, error: new Error('Yalnızca müşteriler giriş yapabilir.') };
+                // Kullanıcının istediği hata mesajını göster
+                toast.error('Kullanıcı adı veya parola hatalı.');
+                return { user: null, profile: null, error: new Error('Satıcı girişi engellendi.') };
             }
             
-            // 3. Oturumu ayarla ve yönlendir
+            // Oturumu ayarla ve yönlendir
             const userData = { ...signInData.user, role };
             setUser(userData);
             toast.success('Giriş başarılı!');
 
             // Giriş sonrası yönlendirme
             if (role === 'seller') {
-                // Satıcılar doğrudan satıcı paneline yönlendirilmeli (Satıcı Giriş sayfası kullanılıyorsa)
+                // Satıcılar doğrudan satıcı paneline yönlendirilmeli (Bu kod, '/seller' sayfasındaki giriş formu için geçerli olacak.)
                 router.push('/seller/product-list');
             } else {
                 // Müşteriler ana sayfaya yönlendirilmeli
@@ -159,6 +165,8 @@ export const AppContextProvider = (props) => {
 
             return { user: signInData.user, profile: { role }, error: null };
         }
+        
+        // Eğer Supabase login başarılı oldu ama user gelmediyse (ki nadir bir durum)
         return { user: null, profile: null, error: new Error('Bilinmeyen bir hata oluştu.') };
     };
 
