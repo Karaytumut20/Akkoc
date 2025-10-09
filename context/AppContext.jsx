@@ -40,11 +40,19 @@ export const AppContextProvider = (props) => {
         const fetchUserSession = async () => {
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.user) {
+                // Kullanıcının rolünü profilden çek
                 const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).maybeSingle();
-                const userData = { ...session.user, role: profile?.role || 'customer' };
+                const role = profile?.role || 'customer';
+                
+                // Müşteri rolü yoksa veya belirlenemiyorsa varsayılan müşteri rolü verilebilir,
+                // ancak Supabase'de profile tablosunu kontrol etmek en doğrusu.
+                const userData = { ...session.user, role };
+                
                 setUser(userData);
                 await fetchAddresses(session.user.id);
-                if (profile?.role !== 'seller') {
+                
+                // Satıcı değilse (yani müşteriyse) siparişleri çek
+                if (role !== 'seller') {
                     await fetchMyOrders(session.user.id);
                 }
             }
@@ -57,10 +65,15 @@ export const AppContextProvider = (props) => {
             const currentUser = session?.user;
              if (currentUser) {
                 const { data: profile } = await supabase.from('profiles').select('role').eq('id', currentUser.id).maybeSingle();
-                const userData = { ...currentUser, role: profile?.role || 'customer' };
+                const role = profile?.role || 'customer';
+                
+                const userData = { ...currentUser, role };
                 setUser(userData);
+                
                 await fetchAddresses(currentUser.id);
-                 if (profile?.role !== 'seller') {
+                
+                // Satıcı değilse (yani müşteriyse) siparişleri çek
+                 if (role !== 'seller') {
                     await fetchMyOrders(currentUser.id);
                 }
             } else {
@@ -80,11 +93,24 @@ export const AppContextProvider = (props) => {
     
     // AUTH FUNCTIONS
     const signUp = async (email, password) => {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { data: signInData, error } = await supabase.auth.signUp({ email, password });
         if (error) {
             toast.error(error.message);
             return false;
         }
+        
+        // Yeni kaydolan kullanıcıya otomatik olarak 'customer' rolü atayalım (örnek olarak)
+        if (signInData.user) {
+            const { error: profileError } = await supabase
+                .from('profiles')
+                .insert([{ id: signInData.user.id, role: 'customer' }]);
+            
+            if (profileError) {
+                 // Hata olsa bile kullanıcıyı kaydettik, sadece rolü atayamadık.
+                 console.error("Profil (Rol) atama hatası:", profileError.message);
+            }
+        }
+
         toast.success('Kayıt başarılı! Lütfen e-postanızı doğrulayın.');
         return true;
     };
@@ -95,31 +121,39 @@ export const AppContextProvider = (props) => {
             toast.error(error.message);
             return { user: null, profile: null, error };
         }
+        
+        // 1. Giriş başarılı, şimdi profil rolünü kontrol et.
         if (signInData.user) {
             const { data: profile, error: profileError } = await supabase.from('profiles').select('role').eq('id', signInData.user.id).maybeSingle();
+            
             if (profileError) {
                 toast.error("Profil bilgisi alınamadı: " + profileError.message);
-                await supabase.auth.signOut();
+                await supabase.auth.signOut(); // Güvenlik için oturumu kapat
                 return { user: null, profile: null, error: profileError };
             }
+            
             const role = profile?.role || 'customer';
 
-            // YALNIZCA 'customer' ROLÜ GİRİŞ YAPABİLİR KONTROLÜ
-            if (window.location.pathname.startsWith('/auth') && role !== 'customer') {
-                toast.error('Bu alana sadece müşteri hesapları giriş yapabilir. Satıcılar kendi panelinden giriş yapmalıdır.');
-                await supabase.auth.signOut();
+            // 2. YALNIZCA /auth SAYFASINDAKİ GİRİŞ İÇİN ROL KONTROLÜ
+            // Not: Satıcı girişi için '/seller' sayfasında özel bir form olmalıdır.
+            if (window.location.pathname.startsWith('/auth') && role === 'seller') {
+                toast.error('Satıcılar bu alandan giriş yapamaz. Lütfen satıcı paneli giriş sayfasını kullanın.');
+                await supabase.auth.signOut(); // Satıcı oturumunu kapat
                 setUser(null);
                 return { user: null, profile: null, error: new Error('Yalnızca müşteriler giriş yapabilir.') };
             }
-
-            const userData = { ...signInData.user, role: role };
+            
+            // 3. Oturumu ayarla ve yönlendir
+            const userData = { ...signInData.user, role };
             setUser(userData);
             toast.success('Giriş başarılı!');
 
             // Giriş sonrası yönlendirme
             if (role === 'seller') {
+                // Satıcılar doğrudan satıcı paneline yönlendirilmeli (Satıcı Giriş sayfası kullanılıyorsa)
                 router.push('/seller/product-list');
             } else {
+                // Müşteriler ana sayfaya yönlendirilmeli
                 router.push('/');
             }
 
