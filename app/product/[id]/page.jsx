@@ -140,6 +140,9 @@ const Product = () => {
                     </div>
                 )}
             </div>
+
+
+            
             <Footer />
         </>
     );
