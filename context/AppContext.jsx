@@ -283,6 +283,9 @@ export const AppContextProvider = (props) => {
     };
     useEffect(() => { fetchProducts(); }, []);
 
+
+
+    
     const value = {
         currency, router, products, loading, error, fetchProducts,
         cartItems, setCartItems, addToCart, updateCartQuantity, getCartCount, getCartAmount,
