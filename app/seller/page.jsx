@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppContext } from '@/context/AppContext';
-import toast from 'react-hot-toast';
+import { supabase } from '@/lib/supabaseClient'; // Hata düzeltmesi için eklendi
 
 export default function SellerLoginPage() {
+    // signOut fonksiyonu useAppContext'ten çıkarıldı, çünkü burada özel bir kullanım gerekiyor.
     const { signIn, user, isSeller, authLoading } = useAppContext();
     const router = useRouter();
     const [email, setEmail] = useState('');
@@ -14,10 +15,22 @@ export default function SellerLoginPage() {
 
     // Oturum kontrolü ve yönlendirme
     useEffect(() => {
-        if (!authLoading) {
-            if (user && isSeller) {
+        if (authLoading) {
+            return; // Oturum bilgisi yüklenene kadar bekle
+        }
+
+        if (user) {
+            if (isSeller) {
                 // Eğer kullanıcı zaten bir satıcıysa, onu doğrudan ürün listesine yönlendir.
                 router.replace('/seller/product-list');
+            } else {
+                // HATA DÜZELTMESİ: Eğer giriş yapan kullanıcı satıcı değilse,
+                // oturumu kapatıp müşteri giriş sayfasına yönlendirerek sonsuz döngüyü engelle.
+                const handleNonSeller = async () => {
+                    await supabase.auth.signOut();
+                    router.replace('/auth'); // Satıcı olmayanları müşteri girişine yönlendir
+                };
+                handleNonSeller();
             }
         }
     }, [user, isSeller, authLoading, router]);
@@ -25,30 +38,21 @@ export default function SellerLoginPage() {
     const handleSellerLogin = async (e) => {
         e.preventDefault();
         setLoading(true);
-
-        const loggedInUser = await signIn(email, password);
-
-        if (loggedInUser) {
-            // signIn fonksiyonu artık kullanıcıyı döndürüyor, role kontrolünü burada yapabiliriz.
-            // Ancak AppContext zaten bu kontrolü yapıyor ve isSeller state'ini güncelliyor.
-            // useEffect'in yönlendirmesini beklemek en temiz yol.
-            // Sadece başarılı giriş sonrası yönlendirme için bekleyelim.
-        } else {
-            // Giriş başarısızsa, signIn fonksiyonu zaten toast mesajı gösterdi.
-            setLoading(false);
-        }
-        // Başarılı girişten sonra useEffect yönlendirmeyi yapacak.
+        // signIn fonksiyonuna 'seller' parametresi göndererek sadece satıcıların giriş yapmasını sağla
+        await signIn(email, password, 'seller');
+        setLoading(false);
     };
 
-    // Yönlendirme beklenirken veya yükleme sırasında bir yükleme ekranı göster.
-    if (authLoading || (user && isSeller)) {
+    // Yönlendirme veya oturum kontrolü sırasında bir yükleme ekranı göstererek arayüzün anlık görünmesini engelle.
+    if (authLoading || user) {
         return (
              <div className="flex items-center justify-center h-screen bg-gray-50 text-gray-700">
-                Yönlendiriliyor...
+                Oturum kontrol ediliyor ve yönlendiriliyor...
             </div>
         );
     }
     
+    // Sadece oturum açık değilse ve yükleme bittiyse giriş formunu göster.
     return (
         <div className="flex items-center justify-center min-h-screen bg-gray-50">
             <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
@@ -75,3 +79,4 @@ export default function SellerLoginPage() {
         </div>
     );
 }
+

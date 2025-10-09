@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useAppContext } from '@/context/AppContext';
 
 export default function AuthPage() {
-  // 1. Hata burada olabilir: useAppContext'ten 'signIn' fonksiyonunu aldığınızdan emin olun.
   const { signIn, signUp } = useAppContext();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -16,8 +15,8 @@ export default function AuthPage() {
     setLoading(true);
     try {
       if (isLogin) {
-        // 2. Hata burada olabilir: 'customerSignIn' yerine 'signIn' fonksiyonunu çağırın.
-        await signIn(email, password);
+        // signIn fonksiyonuna 'customer' parametresi göndererek sadece müşterilerin giriş yapmasını sağla
+        await signIn(email, password, 'customer');
       } else {
         await signUp(email, password);
       }
