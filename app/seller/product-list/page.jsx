@@ -27,8 +27,9 @@ export default function ProductsTable() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    category_id: '', // DEĞİŞİKLİK: 'category' alanı 'category_id' oldu.
+    category_id: '',
     price: '',
+    stock: '', // Stok alanı eklendi
     image_urls: [],
     bigcard: false,
     doublebigcard: false,
@@ -44,7 +45,6 @@ export default function ProductsTable() {
 
   const fetchProducts = async () => {
     setLoading(true);
-    // DEĞİŞİKLİK: Sorgu, artık kategori adını 'categories' tablosundan birleştirerek çekiyor.
     const { data, error } = await supabase
       .from('products')
       .select('*, categories ( name )');
@@ -138,8 +138,9 @@ export default function ProductsTable() {
     setFormData({
       name: product.name,
       description: product.description,
-      category_id: product.category_id, // DEĞİŞİKLİK: Artık category_id set ediliyor.
+      category_id: product.category_id,
       price: product.price,
+      stock: product.stock, // Stok verisi eklendi
       image_urls: product.image_urls || [],
       bigcard: product.bigcard || false,
       doublebigcard: product.doublebigcard || false,
@@ -167,8 +168,8 @@ export default function ProductsTable() {
   };
 
   const handleUpdate = async () => {
-    if (!formData.name || !formData.category_id || !formData.price) {
-      return toast.error('Lütfen isim, kategori ve fiyat alanlarını doldurun.');
+    if (!formData.name || !formData.category_id || !formData.price || formData.stock === '') {
+      return toast.error('Lütfen isim, kategori, fiyat ve stok alanlarını doldurun.');
     }
 
     setActionLoading(true);
@@ -182,9 +183,10 @@ export default function ProductsTable() {
       .update({
         name: formData.name,
         description: formData.description,
-        category_id: formData.category_id, // DEĞİŞİKLİK: category_id gönderiliyor.
+        category_id: formData.category_id,
         price: parseFloat(formData.price),
-        image_urls: finalImageUrls, // Artık JSON.stringify'a gerek yok, çünkü sütun tipi text[]
+        stock: parseInt(formData.stock), // Stok verisi eklendi
+        image_urls: finalImageUrls,
         bigcard: formData.bigcard,
         doublebigcard: formData.doublebigcard,
         doublebigcardtext: formData.doublebigcardtext,
@@ -195,7 +197,7 @@ export default function ProductsTable() {
 
     if (!error) {
       setEditingProduct(null);
-      await fetchProducts(); // Güncel listeyi çek
+      await fetchProducts();
       toast.success('Ürün başarıyla güncellendi!', { id: toastId });
     } else {
       toast.error('Güncelleme hatası: ' + error.message, { id: toastId });
@@ -224,6 +226,7 @@ export default function ProductsTable() {
                   <th className="px-4 py-3 sm:px-6 hidden md:table-cell">Açıklama</th>
                   <th className="px-4 py-3 sm:px-6 hidden sm:table-cell">Kategori</th>
                   <th className="px-4 py-3 sm:px-6 text-right">Fiyat</th>
+                  <th className="px-4 py-3 sm:px-6">Stok</th>
                   <th className="px-4 py-3 sm:px-6 text-center">Vitrin</th>
                   <th className="px-4 py-3 sm:px-6 text-center">İşlemler</th>
                 </tr>
@@ -241,10 +244,10 @@ export default function ProductsTable() {
                     <td className="px-4 py-3 sm:px-6 font-medium text-gray-900">{product.name}</td>
                     <td className="px-4 py-3 sm:px-6 hidden md:table-cell text-sm text-gray-600 truncate max-w-xs">{product.description}</td>
                     <td className="px-4 py-3 sm:px-6 hidden sm:table-cell">
-                        {/* DEĞİŞİKLİK: Kategori adı ilişkili tablodan geliyor. */}
                         <span className="inline-block bg-indigo-100 text-indigo-700 text-xs font-medium px-2 py-0.5 rounded-full">{product.categories?.name || 'Kategorisiz'}</span>
                     </td>
                     <td className="px-4 py-3 sm:px-6 text-right text-lg font-bold text-indigo-600">{product.price} ₺</td>
+                    <td className="px-4 py-3 sm:px-6 text-center font-medium">{product.stock}</td>
                     <td className="px-4 py-3 sm:px-6 text-center space-x-1">
                       {product.bigcard && <span className="px-2 py-1 bg-indigo-100 text-indigo-700 text-xs rounded-full mr-1">Big</span>}
                       {product.doublebigcard && <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full mr-1">Double</span>}
@@ -281,12 +284,12 @@ export default function ProductsTable() {
                 <div className="space-y-5">
                   <input type="text" name="name" value={formData.name} onChange={handleFormChange} placeholder="Ürün Adı" className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-indigo-500 focus:border-indigo-500 transition" />
                   <textarea name="description" value={formData.description} onChange={handleFormChange} placeholder="Açıklama" rows="3" className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-indigo-500 focus:border-indigo-500 transition" />
-                  {/* DEĞİŞİKLİK: Kategori seçimi artık 'category_id' üzerinden yapılıyor. */}
                   <select name="category_id" value={formData.category_id} onChange={handleFormChange} className="w-full border border-gray-300 rounded-xl px-4 py-3 appearance-none bg-white focus:ring-indigo-500 focus:border-indigo-500 transition">
                     <option value="" disabled>Kategori Seç</option>
                     {categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
                   </select>
                   <input type="number" name="price" value={formData.price} onChange={handleFormChange} placeholder="Fiyat" className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-indigo-500 focus:border-indigo-500 transition" />
+                  <input type="number" name="stock" value={formData.stock} onChange={handleFormChange} placeholder="Stok Adedi" className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-indigo-500 focus:border-indigo-500 transition" />
                   
                   <div className="border border-indigo-200/50 bg-indigo-50/50 rounded-xl p-4 shadow-inner">
                     <h3 className="font-bold text-lg text-indigo-700 mb-4">Görsel Yönetimi</h3>

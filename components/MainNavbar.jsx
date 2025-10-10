@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react"; // useRef import edildi
 import { useRouter, usePathname } from "next/navigation";
 import { useAppContext } from "@/context/AppContext";
 import Image from "next/image";
@@ -56,13 +56,35 @@ export default function MainNavbar() {
   const [isSearchVisible, setIsSearchVisible] = useState(false);
   const [isSticky, setIsSticky] = useState(false);
 
+  const searchRef = useRef(null); // Arama kutusu için ref oluşturuldu
+
   const cartCount = getCartCount();
   const isHomePage = pathname === "/";
+
+  // === Dışarıya tıklamayı algılamak için useEffect ===
+  useEffect(() => {
+    function handleClickOutside(event) {
+      // Eğer tıklanan yer, arama kutusunun (searchRef) dışında ise arama kutusunu kapat
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setIsSearchVisible(false);
+      }
+    }
+
+    // Arama kutusu görünür olduğunda event listener'ı ekle
+    if (isSearchVisible) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    // Component temizlendiğinde (unmount) veya arama kutusu kapandığında listener'ı kaldır
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isSearchVisible]); // Bu effect, sadece isSearchVisible durumu değiştiğinde çalışır
 
   // === Sticky scroll kontrolü ===
   useEffect(() => {
     if (!isHomePage) {
-      setIsSticky(true); // diğer sayfalarda direkt sticky (beyaz)
+      setIsSticky(true);
       return;
     }
 
@@ -107,7 +129,6 @@ export default function MainNavbar() {
     { name: "Fine Watches", href: "/all-products" },
   ];
 
-  // === Navbar renk durumu ===
   const headerClasses = isSticky
     ? "fixed top-0 left-0 right-0 z-50 bg-white text-gray-800 shadow-md animate-fadeInDown"
     : "absolute top-0 left-0 right-0 z-20 text-white";
@@ -119,7 +140,6 @@ export default function MainNavbar() {
       className={`w-full pt-4 pb-2 px-5 sm:px-10 lg:px-16 transition-all duration-300 ${headerClasses}`}
     >
       <div className="flex items-center justify-between relative">
-        {/* === Sol: Menü & Arama === */}
         <div className="flex items-center space-x-2 sm:space-x-4">
           <button
             aria-label="Menu"
@@ -136,13 +156,15 @@ export default function MainNavbar() {
           <button
             aria-label="Search"
             className="p-2 rounded-full hover:bg-black/10 transition"
-            onClick={() => setIsSearchVisible(!isSearchVisible)}
+            onClick={(e) => {
+                e.stopPropagation(); // Olası event çakışmalarını önler
+                setIsSearchVisible(!isSearchVisible);
+            }}
           >
             <icons.Search className="w-5 h-5" />
           </button>
         </div>
 
-        {/* === Orta: Logo === */}
         <div
           className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 cursor-pointer"
           onClick={() => router.push("/")}
@@ -157,7 +179,6 @@ export default function MainNavbar() {
           />
         </div>
 
-        {/* === Sağ: Kullanıcı & Sepet === */}
         <div className="flex items-center space-x-2 sm:space-x-4">
           {user ? (
             <div className="relative group">
@@ -176,10 +197,10 @@ export default function MainNavbar() {
               </button>
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-20 hidden group-hover:block text-gray-800">
                 <Link
-                  href="/my-orders"
+                  href="/account"
                   className="block px-4 py-2 text-sm hover:bg-gray-100"
                 >
-                  Siparişlerim
+                  Hesabım
                 </Link>
                 <button
                   onClick={signOut}
@@ -221,9 +242,8 @@ export default function MainNavbar() {
         </div>
       </div>
 
-      {/* === Search Bar === */}
       {isSearchVisible && (
-        <div className="relative mt-4 max-w-md mx-auto">
+        <div ref={searchRef} className="relative mt-4 max-w-md mx-auto">
           <form onSubmit={handleSearchSubmit} className="flex">
             <input
               type="text"
@@ -267,7 +287,6 @@ export default function MainNavbar() {
         </div>
       )}
 
-      {/* === Desktop Menü === */}
       <nav
         className={`mt-6 hidden lg:flex justify-center space-x-10 text-sm font-light tracking-[0.25em] uppercase ${
           isSticky ? "text-gray-700" : "text-gray-200"
@@ -285,7 +304,6 @@ export default function MainNavbar() {
         ))}
       </nav>
 
-      {/* === Mobile Menü === */}
       {menuOpen && (
         <div className="fixed top-0 left-0 w-full h-full bg-black/90 z-50 flex flex-col items-center justify-center text-center space-y-8 text-white text-lg font-light uppercase tracking-widest animate-fadeIn">
           <button

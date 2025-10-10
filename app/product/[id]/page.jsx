@@ -24,7 +24,7 @@ const Product = () => {
             setLoading(true);
             const { data, error } = await supabase
                 .from('products')
-                .select('*, categories(name)') // Kategori adını da çekiyoruz
+                .select('*, categories(name)')
                 .eq('id', id)
                 .single();
 
@@ -50,7 +50,6 @@ const Product = () => {
 
     useEffect(() => {
         if (productData && allProducts.length > 0) {
-            // İlgili ürünleri kategori ID'sine göre filtrele
             setRelatedProducts(
                 allProducts.filter(p => p.category_id === productData.category_id && p.id !== productData.id).slice(0, 5)
             );
@@ -69,7 +68,7 @@ const Product = () => {
                                 src={mainImage}
                                 alt={productData.name}
                                 fill
-                                className="object-contain" // contain olarak değiştirildi
+                                className="object-contain"
                                 sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
                             />
                         </div>
@@ -84,7 +83,7 @@ const Product = () => {
                                         src={image}
                                         alt={`${productData.name} ${index + 1}`}
                                         fill
-                                        className="object-contain" // contain olarak değiştirildi
+                                        className="object-contain"
                                         sizes="(max-width: 768px) 33vw, (max-width: 1280px) 25vw, 20vw"
                                     />
                                 </div>
@@ -107,22 +106,31 @@ const Product = () => {
                             <tbody>
                                 <tr>
                                     <td className="text-gray-600 font-medium pr-4">Kategori</td>
-                                    {/* Kategori adını ilişkili tablodan al */}
                                     <td className="text-gray-800/50">{productData.categories?.name || 'Belirtilmemiş'}</td>
                                 </tr>
                             </tbody>
                         </table>
-                        <div className="flex flex-col sm:flex-row items-center mt-10 gap-4">
-                            <button onClick={() => addToCart(productData)} className="w-full sm:w-auto flex-1 py-3.5 bg-gray-100 text-gray-800/80 hover:bg-gray-200 transition rounded-md font-semibold">
-                                Sepete Ekle
-                            </button>
-                            <button
-                                onClick={() => { addToCart(productData); router.push('/cart'); }}
-                                className="w-full sm:w-auto flex-1 py-3.5 bg-orange-500 text-white hover:bg-orange-600 transition rounded-md font-semibold"
-                            >
-                                Hemen Al
-                            </button>
-                        </div>
+                        
+                        {productData.stock > 0 ? (
+                            <div className="flex flex-col sm:flex-row items-center mt-10 gap-4">
+                                <button onClick={() => addToCart(productData)} className="w-full sm:w-auto flex-1 py-3.5 bg-gray-100 text-gray-800/80 hover:bg-gray-200 transition rounded-md font-semibold">
+                                    Sepete Ekle
+                                </button>
+                                <button
+                                    onClick={() => { addToCart(productData); router.push('/cart'); }}
+                                    className="w-full sm:w-auto flex-1 py-3.5 bg-orange-500 text-white hover:bg-orange-600 transition rounded-md font-semibold"
+                                >
+                                    Hemen Al
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="mt-10">
+                                <button disabled className="w-full py-3.5 bg-gray-200 text-gray-500 rounded-md cursor-not-allowed">
+                                    Tükendi
+                                </button>
+                            </div>
+                        )}
+
                     </div>
                 </div>
 
@@ -138,9 +146,6 @@ const Product = () => {
                     </div>
                 )}
             </div>
-
-
-            
             <Footer />
         </>
     );

@@ -1,7 +1,4 @@
 'use client'
-// Bu dosya, uygulamanın genel state yönetimini ve kimlik doğrulama (authentication)
-// işlemlerini yöneten ana context dosyasıdır. İstekleriniz doğrultusunda, rol (seller/customer)
-// ayrımı tamamen kaldırılmış ve daha basit bir yapıya geçilmiştir.
 
 import { useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useState, useRef, useCallback } from "react";
@@ -33,6 +30,7 @@ export const AppContextProvider = (props) => {
     
     const [addresses, setAddresses] = useState([]);
     const [myOrders, setMyOrders] = useState([]);
+    const [wishlist, setWishlist] = useState([]);
     
     const inactivityTimer = useRef(null);
 
@@ -59,17 +57,16 @@ export const AppContextProvider = (props) => {
         }
     }, [user, resetInactivityTimer]);
 
-    // AUTH STATE CHANGE LISTENER (Oturum yönetimi)
     useEffect(() => {
         setAuthLoading(true);
         const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
             const currentUser = session?.user;
-            setUser(currentUser || null); // Rol bilgisi olmadan sadece kullanıcıyı set et
+            setUser(currentUser || null);
             if (!currentUser) {
-                // Kullanıcı çıkış yaptığında ilgili state'leri temizle
                 setCartItems({});
                 setAddresses([]);
                 setMyOrders([]);
+                setWishlist([]);
             }
             setAuthLoading(false);
         });
@@ -79,14 +76,12 @@ export const AppContextProvider = (props) => {
         };
     }, []);
     
-    // AUTH FUNCTIONS (Rol mantığı kaldırıldı)
     const signUp = async (email, password) => {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) {
             toast.error(error.message);
             return false;
         }
-        // Profil tablosuna rol ekleme işlemi kaldırıldı
         toast.success('Kayıt başarılı! Lütfen e-postanızı doğrulayın.');
         return true;
     };
@@ -101,7 +96,6 @@ export const AppContextProvider = (props) => {
         
         if (signInData.user) {
             toast.success('Giriş başarılı!');
-            // Rol kontrolü yok, sadece nereden giriş yapıldığına göre yönlendir
             if (source === 'seller') {
                 router.push('/seller/product-list');
             } else {
@@ -113,11 +107,10 @@ export const AppContextProvider = (props) => {
     const signOut = useCallback(async () => {
         await supabase.auth.signOut();
         clearTimeout(inactivityTimer.current);
-        router.push('/'); // Çıkış yapınca ana sayfaya yönlendir
+        router.push('/');
         toast.success('Başarıyla çıkış yapıldı.');
     }, [router]);
     
-    // DATA FETCHING FUNCTIONS
     const fetchProducts = async () => {
         setLoading(true); setError(null);
         const { data, error } = await supabase.from('products').select('*, categories(name)');
@@ -144,11 +137,46 @@ export const AppContextProvider = (props) => {
         const { data, error } = await supabase.from('orders').select(`*, order_items(*, products(*, categories(name)))`).eq('user_id', userId).order('created_at', { ascending: false });
         if (!error) setMyOrders(data || []);
     };
+
+    const fetchWishlist = async (userId) => {
+        if (!userId) return;
+        const { data, error } = await supabase
+            .from('wishlist')
+            .select('*, product:products(*)')
+            .eq('user_id', userId);
+
+        if (!error) {
+            setWishlist(data || []);
+        }
+    };
+
+    const addToWishlist = async (productId) => {
+        if (!user) return toast.error("Favorilere eklemek için giriş yapmalısınız.");
+        const { error } = await supabase.from('wishlist').insert({ user_id: user.id, product_id: productId });
+        if (error) {
+            toast.error("Bu ürün zaten favorilerinizde.");
+        } else {
+            toast.success("Ürün favorilere eklendi!");
+            fetchWishlist(user.id);
+        }
+    };
+
+    const removeFromWishlist = async (productId) => {
+        if (!user) return;
+        const { error } = await supabase.from('wishlist').delete().match({ user_id: user.id, product_id: productId });
+        if (error) {
+            toast.error("Favorilerden kaldırırken hata oluştu.");
+        } else {
+            toast.success("Ürün favorilerden kaldırıldı!");
+            fetchWishlist(user.id);
+        }
+    };
     
     useEffect(() => {
         if (user) {
             fetchAddresses(user.id);
             fetchMyOrders(user.id);
+            fetchWishlist(user.id);
         }
     }, [user]);
 
@@ -166,7 +194,6 @@ export const AppContextProvider = (props) => {
         }
     };
 
-    // CART & ORDER
     useEffect(() => {
         try { const storedCart = localStorage.getItem("cartItems"); if (storedCart) setCartItems(JSON.parse(storedCart)); } catch (e) { console.error(e); }
     }, []);
@@ -180,6 +207,11 @@ export const AppContextProvider = (props) => {
     }, [cartItems]);
 
     const addToCart = (product) => {
+        const currentQuantityInCart = cartItems[product.id]?.quantity || 0;
+        if (product.stock <= currentQuantityInCart) {
+            return toast.error("Üzgünüz, bu ürünün stoğu tükendi.");
+        }
+
         setCartItems(prev => ({ ...prev, [product.id]: { product, quantity: (prev[product.id]?.quantity || 0) + 1 } }));
         toast.success(`${product.name} sepete eklendi!`);
     };
@@ -187,6 +219,14 @@ export const AppContextProvider = (props) => {
     const updateCartQuantity = (productId, quantity) => {
         setCartItems(prev => {
             const newItems = { ...prev };
+            const product = newItems[productId]?.product;
+
+            if (product && quantity > product.stock) {
+                toast.error(`Maksimum ${product.stock} adet ekleyebilirsiniz.`);
+                newItems[productId].quantity = product.stock;
+                return newItems;
+            }
+
             if (quantity <= 0) delete newItems[productId];
             else if (newItems[productId]) newItems[productId].quantity = quantity;
             return newItems;
@@ -211,6 +251,15 @@ export const AppContextProvider = (props) => {
             const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
             if (itemsError) throw itemsError;
 
+            const stockUpdates = Object.values(cartItems).map(item =>
+                supabase
+                    .from('products')
+                    .update({ stock: item.product.stock - item.quantity })
+                    .eq('id', item.product.id)
+            );
+            
+            await Promise.all(stockUpdates);
+
             setCartItems({});
             toast.success('Siparişiniz başarıyla oluşturuldu!', { id: toastId });
             router.push('/order-placed');
@@ -223,10 +272,11 @@ export const AppContextProvider = (props) => {
     const value = {
         currency, router, products, loading, error, fetchProducts,
         cartItems, setCartItems, addToCart, updateCartQuantity, getCartCount, getCartAmount,
-        user, authLoading, signUp, signIn, signOut, // isSeller kaldırıldı
+        user, authLoading, signUp, signIn, signOut,
         addresses, fetchAddresses, addAddress,
         myOrders, fetchMyOrders,
-        placeOrder, getSafeImageUrl
+        placeOrder, getSafeImageUrl,
+        wishlist, addToWishlist, removeFromWishlist,
     };
 
     return <AppContext.Provider value={value}>{props.children}</AppContext.Provider>;

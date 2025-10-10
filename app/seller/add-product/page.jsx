@@ -29,6 +29,7 @@ export default function AddProductPage() {
     description: '',
     category_id: '',
     price: '',
+    stock: '', // Stok alanı eklendi
     bigcard: false,
     doublebigcard: false,
     doublebigcardtext: false,
@@ -102,8 +103,8 @@ export default function AddProductPage() {
 
   const handleAddProduct = async (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.category_id || !formData.price) {
-      return toast.error('Lütfen isim, kategori ve fiyat alanlarını doldurun.');
+    if (!formData.name || !formData.category_id || !formData.price || formData.stock === '') {
+      return toast.error('Lütfen isim, kategori, fiyat ve stok alanlarını doldurun.');
     }
 
     setActionLoading(true);
@@ -118,6 +119,7 @@ export default function AddProductPage() {
         description: formData.description,
         category_id: formData.category_id,
         price: parseFloat(formData.price),
+        stock: parseInt(formData.stock), // Stok verisi eklendi
         image_urls: uploadedUrls,
         bigcard: formData.bigcard,
         doublebigcard: formData.doublebigcard,
@@ -148,6 +150,7 @@ export default function AddProductPage() {
                 {categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
             </select>
             <input type="number" name="price" value={formData.price} onChange={handleFormChange} placeholder="Fiyat" required className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-indigo-500 focus:border-indigo-500 transition" />
+            <input type="number" name="stock" value={formData.stock} onChange={handleFormChange} placeholder="Stok Adedi" required className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-indigo-500 focus:border-indigo-500 transition" />
             
             <div className="border border-indigo-200/50 bg-indigo-50/50 rounded-xl p-4 shadow-inner">
                 <h3 className="font-bold text-lg text-indigo-700 mb-4">Görsel Yükle</h3>
