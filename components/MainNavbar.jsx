@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from "react"; // useRef import edildi
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAppContext } from "@/context/AppContext";
 import Image from "next/image";
@@ -55,33 +55,30 @@ export default function MainNavbar() {
   const [searchResults, setSearchResults] = useState([]);
   const [isSearchVisible, setIsSearchVisible] = useState(false);
   const [isSticky, setIsSticky] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
-  const searchRef = useRef(null); // Arama kutusu için ref oluşturuldu
+  const searchRef = useRef(null);
+  const userMenuRef = useRef(null);
 
   const cartCount = getCartCount();
   const isHomePage = pathname === "/";
 
-  // === Dışarıya tıklamayı algılamak için useEffect ===
   useEffect(() => {
     function handleClickOutside(event) {
-      // Eğer tıklanan yer, arama kutusunun (searchRef) dışında ise arama kutusunu kapat
       if (searchRef.current && !searchRef.current.contains(event.target)) {
         setIsSearchVisible(false);
       }
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+        setIsUserMenuOpen(false);
+      }
     }
 
-    // Arama kutusu görünür olduğunda event listener'ı ekle
-    if (isSearchVisible) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    // Component temizlendiğinde (unmount) veya arama kutusu kapandığında listener'ı kaldır
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [isSearchVisible]); // Bu effect, sadece isSearchVisible durumu değiştiğinde çalışır
+  }, []);
 
-  // === Sticky scroll kontrolü ===
   useEffect(() => {
     if (!isHomePage) {
       setIsSticky(true);
@@ -95,7 +92,6 @@ export default function MainNavbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [isHomePage]);
 
-  // === Canlı arama ===
   useEffect(() => {
     if (searchQuery.trim() !== "") {
       const filtered = products.filter((product) =>
@@ -157,7 +153,7 @@ export default function MainNavbar() {
             aria-label="Search"
             className="p-2 rounded-full hover:bg-black/10 transition"
             onClick={(e) => {
-                e.stopPropagation(); // Olası event çakışmalarını önler
+                e.stopPropagation();
                 setIsSearchVisible(!isSearchVisible);
             }}
           >
@@ -181,8 +177,11 @@ export default function MainNavbar() {
 
         <div className="flex items-center space-x-2 sm:space-x-4">
           {user ? (
-            <div className="relative group">
-              <button className="flex items-center gap-2 p-2 rounded-full hover:bg-black/10 transition">
+            <div className="relative" ref={userMenuRef}>
+              <button
+                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                className="flex items-center gap-2 p-2 rounded-full hover:bg-black/10 transition"
+              >
                 <Image
                   className="w-5 h-5"
                   src={assets.user_icon}
@@ -195,20 +194,26 @@ export default function MainNavbar() {
                   {user.email.split("@")[0]}
                 </span>
               </button>
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-20 hidden group-hover:block text-gray-800">
-                <Link
-                  href="/account"
-                  className="block px-4 py-2 text-sm hover:bg-gray-100"
-                >
-                  Hesabım
-                </Link>
-                <button
-                  onClick={signOut}
-                  className="w-full text-left block px-4 py-2 text-sm hover:bg-gray-100"
-                >
-                  Çıkış Yap
-                </button>
-              </div>
+              {isUserMenuOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-20 text-gray-800">
+                  <Link
+                    href="/account"
+                    onClick={() => setIsUserMenuOpen(false)}
+                    className="block px-4 py-2 text-sm hover:bg-gray-100"
+                  >
+                    Hesabım
+                  </Link>
+                  <button
+                    onClick={() => {
+                      signOut();
+                      setIsUserMenuOpen(false);
+                    }}
+                    className="w-full text-left block px-4 py-2 text-sm hover:bg-gray-100"
+                  >
+                    Çıkış Yap
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <button

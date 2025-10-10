@@ -27,7 +27,12 @@ const ProductCard = ({ product }) => {
   };
 
   const getValidImage = (imageUrls) => {
-    if (Array.isArray(imageUrls) && imageUrls.length > 0 && typeof imageUrls[0] === 'string' && imageUrls[0].trim() !== '') {
+    if (
+      Array.isArray(imageUrls) &&
+      imageUrls.length > 0 &&
+      typeof imageUrls[0] === 'string' &&
+      imageUrls[0].trim() !== ''
+    ) {
       return imageUrls[0];
     }
     return '/assets/placeholder.jpg';
@@ -35,7 +40,9 @@ const ProductCard = ({ product }) => {
 
   return (
     <div
-      onClick={() => { router.push('/product/' + product.id); }}
+      onClick={() => {
+        router.push('/product/' + product.id);
+      }}
       className="flex flex-col items-start w-full max-w-[210px] cursor-pointer group"
     >
       <div className="relative rounded-lg w-full aspect-[3.2/4] overflow-hidden bg-gray-100">
@@ -46,13 +53,20 @@ const ProductCard = ({ product }) => {
           fill
           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
         />
-        <button 
+
+        {/* 🔴 FAVORİ BUTONU ARTIK HER ZAMAN GÖRÜNÜR */}
+        <button
           onClick={handleFavoriteClick}
-          className="absolute top-2 right-2 bg-white p-2 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity z-10"
+          className="absolute top-2 right-2 bg-white p-2 rounded-full shadow-md transition-all z-10 hover:scale-110"
         >
-          <FiHeart className={`w-4 h-4 ${isFavorited ? 'fill-red-500 text-red-500' : 'text-gray-600'}`} />
+          <FiHeart
+            className={`w-4 h-4 ${
+              isFavorited ? 'fill-red-500 text-red-500' : 'text-gray-600'
+            }`}
+          />
         </button>
       </div>
+
       <p className="text-base font-medium pt-2 w-full truncate text-center">
         {product.name}
       </p>
