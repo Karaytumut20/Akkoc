@@ -26,7 +26,7 @@ const AccountPage = () => {
     const menuItems = [
         { name: "Siparişlerim", href: "/my-orders" },
         { name: "Favorilerim", href: "/wishlist" },
-        { name: "Adreslerim", href: "/add-address" },
+        { name: "Adreslerim", href: "/account/addresses" },
     ];
 
     return (
