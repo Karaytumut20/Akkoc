@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useAppContext } from '@/context/AppContext';
+import FloatingLabelInput from '@/components/ui/FloatingLabelInput';
 
 export default function AuthPage() {
   const { signIn, signUp } = useAppContext();
@@ -15,8 +16,7 @@ export default function AuthPage() {
     setLoading(true);
     try {
       if (isLogin) {
-        // Rol ayrımı olmadan genel giriş fonksiyonunu çağır
-        await signIn(email, password, 'customer'); // 'customer' parametresi ana sayfaya yönlendirme için kullanılır
+        await signIn(email, password, 'customer');
       } else {
         await signUp(email, password);
       }
@@ -29,48 +29,35 @@ export default function AuthPage() {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50">
-      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
+      <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow-md">
         <h2 className="text-2xl font-bold text-center text-gray-900">
           {isLogin ? 'Giriş Yap' : 'Kayıt Ol'}
         </h2>
-        <form className="space-y-6" onSubmit={handleSubmit}>
-          <div>
-            <label htmlFor="email" className="text-sm font-medium text-gray-700">
-              E-posta Adresi
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="password"
-              className="text-sm font-medium text-gray-700"
-            >
-              Şifre
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500"
-            />
-          </div>
+        <form className="space-y-8" onSubmit={handleSubmit}>
+          <FloatingLabelInput
+            id="email"
+            name="email"
+            type="email"
+            label="E-posta Adresi"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoComplete="email"
+          />
+          <FloatingLabelInput
+            id="password"
+            name="password"
+            type="password"
+            label="Şifre"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            autoComplete="current-password"
+          />
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2 px-4 text-white bg-orange-600 rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:bg-orange-300"
+            className="w-full py-2.5 px-4 text-white bg-orange-600 rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:bg-orange-300"
           >
             {loading ? 'İşlem yapılıyor...' : (isLogin ? 'Giriş Yap' : 'Kayıt Ol')}
           </button>

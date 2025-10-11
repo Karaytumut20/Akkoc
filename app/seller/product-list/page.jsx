@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import Image from 'next/image';
-import { FiTrash2, FiX, FiEdit3 } from 'react-icons/fi';
+import { FiTrash2, FiX, FiEdit3, FiUploadCloud } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import FloatingLabelInput from '@/components/ui/FloatingLabelInput';
 
 const BUCKET_NAME = 'product-images';
 
@@ -29,7 +30,7 @@ export default function ProductsTable() {
     description: '',
     category_id: '',
     price: '',
-    stock: '', // Stok alanı eklendi
+    stock: '',
     image_urls: [],
     bigcard: false,
     doublebigcard: false,
@@ -38,16 +39,12 @@ export default function ProductsTable() {
     brandicon: false,
   });
 
-  useEffect(() => {
-    fetchProducts();
-    fetchCategories();
-  }, []);
-
   const fetchProducts = async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('products')
-      .select('*, categories ( name )');
+      .select('*, categories ( name )')
+      .order('created_at', { ascending: false });
 
     if (error) {
       toast.error('Ürünler alınamadı: ' + error.message);
@@ -66,9 +63,14 @@ export default function ProductsTable() {
     if (!error && data) {
       setCategories(data);
     } else {
-      toast.error('Kategoriler alınamadı: ' + error?.message);
+      toast.error('Kategoriler alınamadı: ' + (error?.message || ''));
     }
   };
+
+  useEffect(() => {
+    fetchProducts();
+    fetchCategories();
+  }, []);
 
   const getValidImage = (imageArray) => {
     if (!imageArray || imageArray.length === 0) return null;
@@ -140,7 +142,7 @@ export default function ProductsTable() {
       description: product.description,
       category_id: product.category_id,
       price: product.price,
-      stock: product.stock, // Stok verisi eklendi
+      stock: product.stock,
       image_urls: product.image_urls || [],
       bigcard: product.bigcard || false,
       doublebigcard: product.doublebigcard || false,
@@ -185,7 +187,7 @@ export default function ProductsTable() {
         description: formData.description,
         category_id: formData.category_id,
         price: parseFloat(formData.price),
-        stock: parseInt(formData.stock), // Stok verisi eklendi
+        stock: parseInt(formData.stock),
         image_urls: finalImageUrls,
         bigcard: formData.bigcard,
         doublebigcard: formData.doublebigcard,
@@ -281,15 +283,17 @@ export default function ProductsTable() {
                     </button>
                 </div>
                 
-                <div className="space-y-5">
-                  <input type="text" name="name" value={formData.name} onChange={handleFormChange} placeholder="Ürün Adı" className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-indigo-500 focus:border-indigo-500 transition" />
-                  <textarea name="description" value={formData.description} onChange={handleFormChange} placeholder="Açıklama" rows="3" className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-indigo-500 focus:border-indigo-500 transition" />
+                <div className="space-y-8">
+                  <FloatingLabelInput id="edit-name" name="name" label="Ürün Adı" value={formData.name} onChange={handleFormChange} />
+                  <FloatingLabelInput as="textarea" id="edit-description" name="description" label="Açıklama" value={formData.description} onChange={handleFormChange} />
+                  
                   <select name="category_id" value={formData.category_id} onChange={handleFormChange} className="w-full border border-gray-300 rounded-xl px-4 py-3 appearance-none bg-white focus:ring-indigo-500 focus:border-indigo-500 transition">
                     <option value="" disabled>Kategori Seç</option>
                     {categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
                   </select>
-                  <input type="number" name="price" value={formData.price} onChange={handleFormChange} placeholder="Fiyat" className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-indigo-500 focus:border-indigo-500 transition" />
-                  <input type="number" name="stock" value={formData.stock} onChange={handleFormChange} placeholder="Stok Adedi" className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-indigo-500 focus:border-indigo-500 transition" />
+
+                  <FloatingLabelInput id="edit-price" name="price" type="number" label="Fiyat" value={formData.price} onChange={handleFormChange} />
+                  <FloatingLabelInput id="edit-stock" name="stock" type="number" label="Stok Adedi" value={formData.stock} onChange={handleFormChange} />
                   
                   <div className="border border-indigo-200/50 bg-indigo-50/50 rounded-xl p-4 shadow-inner">
                     <h3 className="font-bold text-lg text-indigo-700 mb-4">Görsel Yönetimi</h3>
@@ -298,7 +302,7 @@ export default function ProductsTable() {
                       <div className="flex flex-wrap gap-3">
                         {formData.image_urls.map((url, index) => (
                           <div key={`existing-${index}`} className="relative w-20 h-20 border-2 border-white rounded-lg overflow-hidden shadow-md group">
-                            <Image src={url} alt={`Görsel ${index + 1}`} fill objectFit="cover" />
+                            <Image src={url} alt={`Görsel ${index + 1}`} fill style={{objectFit: 'cover'}} />
                             <button onClick={() => handleRemoveImage(url)} className="absolute inset-0 bg-red-600 bg-opacity-70 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                               <FiTrash2 className="text-white w-5 h-5" />
                             </button>
@@ -309,17 +313,17 @@ export default function ProductsTable() {
                     </div>
 
                     <div>
-                      <label htmlFor="file-upload" className="block text-sm font-semibold text-indigo-700 mb-2 cursor-pointer">
+                      <label htmlFor="file-upload-modal" className="block text-sm font-semibold text-indigo-700 mb-2 cursor-pointer">
                         <span className="inline-flex items-center px-4 py-2 bg-indigo-500 text-white rounded-full hover:bg-indigo-600 transition shadow-lg">Yeni Görsel Yükle</span>
                       </label>
-                      <input id="file-upload" type="file" name="files" onChange={handleFileChange} multiple accept="image/*" className="hidden" />
+                      <input id="file-upload-modal" type="file" name="files" onChange={handleFileChange} multiple accept="image/*" className="hidden" />
                       {filesToUpload.length > 0 && (
                         <div className="mt-4">
                             <h4 className="text-sm font-semibold mb-3 text-gray-600">Yüklenecekler ({filesToUpload.length} adet)</h4>
                             <div className="flex flex-wrap gap-3">
                                 {filesToUpload.map((fileObj, index) => (
                                     <div key={`new-${index}`} className="relative w-20 h-20 border-2 border-green-500 rounded-lg overflow-hidden shadow-md group">
-                                        <Image src={fileObj.preview} alt={fileObj.file.name} fill objectFit="cover" />
+                                        <Image src={fileObj.preview} alt={fileObj.file.name} fill style={{objectFit: 'cover'}} />
                                         <button onClick={() => handleRemoveNewImage(fileObj.preview)} className="absolute inset-0 bg-red-600 bg-opacity-70 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                             <FiX className="text-white w-5 h-5" />
                                         </button>
@@ -333,12 +337,13 @@ export default function ProductsTable() {
 
                   <div className="border border-indigo-200/50 bg-indigo-50/50 rounded-xl p-4 shadow-inner mt-6">
                     <h3 className="font-bold text-lg text-indigo-700 mb-4">Vitrin Ayarları</h3>
-                    <div className="grid grid-cols-2 gap-3">
-                      <label className="flex items-center gap-2"><input type="checkbox" name="bigcard" checked={formData.bigcard} onChange={handleFormChange} className="h-4 w-4" /> Big Card (Max: {LIMITS.bigcard})</label>
-                      <label className="flex items-center gap-2"><input type="checkbox" name="doublebigcard" checked={formData.doublebigcard} onChange={handleFormChange} className="h-4 w-4" /> Double Big Card (Max: {LIMITS.doublebigcard})</label>
-                      <label className="flex items-center gap-2"><input type="checkbox" name="doublebigcardtext" checked={formData.doublebigcardtext} onChange={handleFormChange} className="h-4 w-4" /> Double Card Text (Max: {LIMITS.doublebigcardtext})</label>
-                      <label className="flex items-center gap-2"><input type="checkbox" name="icons" checked={formData.icons} onChange={handleFormChange} className="h-4 w-4" /> Icons (Max: {LIMITS.icons})</label>
-                      <label className="flex items-center gap-2"><input type="checkbox" name="brandicon" checked={formData.brandicon} onChange={handleFormChange} className="h-4 w-4" /> Brand Icon (Max: {LIMITS.brandicon})</label>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      {Object.entries(LIMITS).map(([key, value]) => (
+                         <label key={key} className="flex items-center gap-2">
+                            <input type="checkbox" name={key} checked={formData[key]} onChange={handleFormChange} className="h-4 w-4 rounded" /> 
+                            {key} (Max: {value})
+                         </label>
+                      ))}
                     </div>
                   </div>
 
