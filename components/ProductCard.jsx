@@ -45,7 +45,7 @@ const ProductCard = ({ product }) => {
       }}
       className="flex flex-col items-start w-full max-w-[210px] cursor-pointer group"
     >
-      <div className="relative rounded-lg w-full aspect-[3.2/4] overflow-hidden bg-gray-100">
+      <div className="relative rounded-lg w-full aspect-[3.4/4] overflow-hidden bg-gray-100">
         <Image
           src={getValidImage(product.image_urls)}
           alt={product.name || 'Product image'}
