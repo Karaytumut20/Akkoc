@@ -111,6 +111,28 @@ export const AppContextProvider = (props) => {
         toast.success('Başarıyla çıkış yapıldı.');
     }, [router]);
     
+    const updateUserPassword = async (newPassword) => {
+        const toastId = toast.loading("Şifreniz güncelleniyor...");
+        const { error } = await supabase.auth.updateUser({ password: newPassword });
+        if (error) {
+            toast.error("Şifre güncellenirken hata: " + error.message, { id: toastId });
+            return false;
+        }
+        toast.success("Şifreniz başarıyla güncellendi!", { id: toastId });
+        return true;
+    };
+
+    const updateUserData = async (data) => {
+        const toastId = toast.loading("Bilgileriniz güncelleniyor...");
+        const { error } = await supabase.auth.updateUser({ data });
+        if (error) {
+            toast.error("Bilgiler güncellenirken hata: " + error.message, { id: toastId });
+            return false;
+        }
+        toast.success("Bilgileriniz başarıyla güncellendi!", { id: toastId });
+        return true;
+    };
+
     const fetchProducts = async () => {
         setLoading(true); setError(null);
         const { data, error } = await supabase.from('products').select('*, categories(name)');
@@ -188,11 +210,44 @@ export const AppContextProvider = (props) => {
             if (error) throw error;
             await fetchAddresses(user.id);
             toast.success("Adres başarıyla eklendi!", { id: toastId });
-            router.back();
+            return true;
         } catch (error) {
             toast.error("Adres eklenirken hata: " + error.message, { id: toastId });
+            return false;
         }
     };
+    
+    // YENİ: Adres güncelleme fonksiyonu
+    const updateAddress = async (addressId, addressData) => {
+        if (!user) return toast.error("Adres güncellemek için giriş yapmalısınız.");
+        const toastId = toast.loading("Adresiniz güncelleniyor...");
+        try {
+            const { id, user_id, created_at, ...updateData } = addressData; // Değişmemesi gereken alanları çıkar
+            const { error } = await supabase.from('addresses').update(updateData).eq('id', addressId);
+            if (error) throw error;
+            await fetchAddresses(user.id);
+            toast.success("Adres başarıyla güncellendi!", { id: toastId });
+            return true;
+        } catch (error) {
+            toast.error("Adres güncellenirken hata: " + error.message, { id: toastId });
+            return false;
+        }
+    };
+
+    // YENİ: Adres silme fonksiyonu
+    const deleteAddress = async (addressId) => {
+        if (!user) return toast.error("Adres silmek için giriş yapmalısınız.");
+        const toastId = toast.loading("Adresiniz siliniyor...");
+        try {
+            const { error } = await supabase.from('addresses').delete().eq('id', addressId);
+            if (error) throw error;
+            setAddresses(prev => prev.filter(addr => addr.id !== addressId)); // UI'ı anında güncelle
+            toast.success("Adres başarıyla silindi!", { id: toastId });
+        } catch (error) {
+            toast.error("Adres silinirken hata: " + error.message, { id: toastId });
+        }
+    };
+
 
     useEffect(() => {
         try { const storedCart = localStorage.getItem("cartItems"); if (storedCart) setCartItems(JSON.parse(storedCart)); } catch (e) { console.error(e); }
@@ -272,8 +327,8 @@ export const AppContextProvider = (props) => {
     const value = {
         currency, router, products, loading, error, fetchProducts,
         cartItems, setCartItems, addToCart, updateCartQuantity, getCartCount, getCartAmount,
-        user, authLoading, signUp, signIn, signOut,
-        addresses, fetchAddresses, addAddress,
+        user, authLoading, signUp, signIn, signOut, updateUserPassword, updateUserData,
+        addresses, fetchAddresses, addAddress, updateAddress, deleteAddress, // <-- Fonksiyonları ekleyin
         myOrders, fetchMyOrders,
         placeOrder, getSafeImageUrl,
         wishlist, addToWishlist, removeFromWishlist,
