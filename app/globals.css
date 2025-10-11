@@ -17,3 +17,16 @@
 ::-webkit-scrollbar {
   display: none;
 }
+
+
+@layer components {
+  .detail-item::after {
+    content: '|';
+    margin: 0 0.75rem; /* 12px */
+    color: #d1d5db; /* gray-300 */
+    font-weight: 100;
+  }
+  .detail-item:last-child::after {
+    content: '';
+  }
+}

@@ -1,9 +1,11 @@
+// components/seller/Sidebar.jsx
+
 'use client';
 
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FiPlusSquare, FiList, FiBox } from 'react-icons/fi'; // react-icons kütüphanesinden ikonlar kullandım
+import { FiPlusSquare, FiList, FiBox, FiMessageSquare } from 'react-icons/fi'; // react-icons kütüphanesinden ikonlar kullandım
 
 const SideBar = () => {
     const pathname = usePathname();
@@ -13,6 +15,7 @@ const SideBar = () => {
         { name: 'Product List', path: '/seller/product-list', icon: <FiList className="w-6 h-6" /> },
         { name: 'Orders', path: '/seller/orders', icon: <FiBox className="w-6 h-6" /> },
         { name: 'Category Add', path: '/seller/category-add', icon: <FiList className="w-6 h-6" /> },
+        { name: 'Reviews', path: '/seller/reviews', icon: <FiMessageSquare className="w-6 h-6" /> }, // YENİ EKLENDİ
     ];
 
     return (
