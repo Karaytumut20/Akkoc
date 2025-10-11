@@ -1,3 +1,5 @@
+// context/AppContext.jsx dosyasının tam hali
+
 'use client'
 
 import { useRouter } from "next/navigation";
@@ -31,8 +33,9 @@ export const AppContextProvider = (props) => {
     const [addresses, setAddresses] = useState([]);
     const [myOrders, setMyOrders] = useState([]);
     const [wishlist, setWishlist] = useState([]);
-    const [myReviews, setMyReviews] = useState([]); // <-- YENİ STATE
-    
+    const [myReviews, setMyReviews] = useState([]);
+    const [savedCards, setSavedCards] = useState([]); // <-- YENİ STATE
+
     const inactivityTimer = useRef(null);
 
     const signOutAfterInactivity = useCallback(() => {
@@ -68,7 +71,8 @@ export const AppContextProvider = (props) => {
                 setAddresses([]);
                 setMyOrders([]);
                 setWishlist([]);
-                setMyReviews([]); // <-- Çıkış yapıldığında yorumları temizle
+                setMyReviews([]);
+                setSavedCards([]); // <-- Çıkış yapıldığında kartları temizle
             }
             setAuthLoading(false);
         });
@@ -113,15 +117,32 @@ export const AppContextProvider = (props) => {
         toast.success('Başarıyla çıkış yapıldı.');
     }, [router]);
     
-    const updateUserPassword = async (newPassword) => {
-        const toastId = toast.loading("Şifreniz güncelleniyor...");
-        const { error } = await supabase.auth.updateUser({ password: newPassword });
-        if (error) {
-            toast.error("Şifre güncellenirken hata: " + error.message, { id: toastId });
+    const changeUserPassword = async (currentPassword, newPassword) => {
+        if (!user) {
+            toast.error("Bu işlem için giriş yapmış olmalısınız.");
             return false;
         }
-        toast.success("Şifreniz başarıyla güncellendi!", { id: toastId });
-        return true;
+        const toastId = toast.loading("İşlem yürütülüyor...");
+        try {
+            const { error: signInError } = await supabase.auth.signInWithPassword({
+                email: user.email,
+                password: currentPassword,
+            });
+            if (signInError) {
+                throw new Error("Mevcut parolanız hatalı.");
+            }
+            const { error: updateError } = await supabase.auth.updateUser({
+                password: newPassword,
+            });
+            if (updateError) {
+                throw new Error("Parola güncellenirken bir hata oluştu: " + updateError.message);
+            }
+            toast.success("Parolanız başarıyla güncellendi!", { id: toastId });
+            return true;
+        } catch (error) {
+            toast.error(error.message, { id: toastId });
+            return false;
+        }
     };
 
     const updateUserData = async (data) => {
@@ -174,7 +195,6 @@ export const AppContextProvider = (props) => {
         }
     };
 
-    // YENİ FONKSİYON
     const fetchMyReviews = async (userId) => {
         if (!userId) return;
         const { data, error } = await supabase
@@ -185,6 +205,58 @@ export const AppContextProvider = (props) => {
     
         if (!error) {
             setMyReviews(data || []);
+        }
+    };
+
+    const fetchSavedCards = async (userId) => {
+        if (!userId) return;
+        const { data, error } = await supabase
+            .from('saved_cards')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+
+        if (!error) {
+            setSavedCards(data || []);
+        }
+    };
+    
+    const addSavedCard = async (cardData) => {
+        if (!user) return toast.error("Kart eklemek için giriş yapmalısınız.");
+        
+        const fakeToken = `tok_${Math.random().toString(36).substr(2, 14)}`;
+        const last4 = cardData.cardNumber.slice(-4);
+        const cardBrand = "visa"; 
+
+        const { error } = await supabase.from('saved_cards').insert({
+            user_id: user.id,
+            card_brand: cardBrand,
+            last4: last4,
+            exp_month: parseInt(cardData.expMonth),
+            exp_year: parseInt(cardData.expYear),
+            payment_provider_token: fakeToken,
+        });
+
+        if (error) {
+            toast.error("Kart eklenirken bir hata oluştu: " + error.message);
+            return false;
+        } else {
+            toast.success("Kart başarıyla eklendi!");
+            fetchSavedCards(user.id);
+            return true;
+        }
+    };
+
+    const deleteSavedCard = async (cardId) => {
+        if (!user) return toast.error("Bu işlem için giriş yapmalısınız.");
+
+        const { error } = await supabase.from('saved_cards').delete().eq('id', cardId);
+
+        if (error) {
+            toast.error("Kart silinirken bir hata oluştu: " + error.message);
+        } else {
+            toast.success("Kart başarıyla silindi.");
+            setSavedCards(prev => prev.filter(card => card.id !== cardId));
         }
     };
 
@@ -215,7 +287,8 @@ export const AppContextProvider = (props) => {
             fetchAddresses(user.id);
             fetchMyOrders(user.id);
             fetchWishlist(user.id);
-            fetchMyReviews(user.id); // <-- EKLENDİ
+            fetchMyReviews(user.id);
+            fetchSavedCards(user.id); // <-- YENİ EKLENEN SATIR
         }
     }, [user]);
 
@@ -342,12 +415,15 @@ export const AppContextProvider = (props) => {
     const value = {
         currency, router, products, loading, error, fetchProducts,
         cartItems, setCartItems, addToCart, updateCartQuantity, getCartCount, getCartAmount,
-        user, authLoading, signUp, signIn, signOut, updateUserPassword, updateUserData,
+        user, authLoading, signUp, signIn, signOut, 
+        changeUserPassword, 
+        updateUserData,
         addresses, fetchAddresses, addAddress, updateAddress, deleteAddress,
         myOrders, fetchMyOrders,
-        myReviews, // <-- EKLENDİ
+        myReviews,
         placeOrder, getSafeImageUrl,
         wishlist, addToWishlist, removeFromWishlist,
+        savedCards, addSavedCard, deleteSavedCard // <-- YENİ DEĞERLERİ EKLE
     };
 
     return <AppContext.Provider value={value}>{props.children}</AppContext.Provider>;

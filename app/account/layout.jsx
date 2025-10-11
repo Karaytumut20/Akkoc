@@ -1,5 +1,6 @@
 // app/account/layout.jsx
-'use client'
+
+'use client';
 
 import { useAppContext } from "@/context/AppContext";
 import { useRouter } from "next/navigation";
@@ -7,6 +8,7 @@ import { useEffect, Suspense } from "react";
 import Loading from "@/components/Loading";
 import Footer from "@/components/Footer";
 import AccountSidebar from "./AccountSidebar"; // Yeni component'i import et
+import { FiCreditCard } from 'react-icons/fi'; // İkonu import et
 
 export default function AccountLayout({ children }) {
     const { user, authLoading } = useAppContext();
@@ -46,3 +48,13 @@ export default function AccountLayout({ children }) {
         </>
     );
 }
+
+// app/account/AccountSidebar.jsx olarak ayrı bir dosyaya taşıdığınızdan emin olun.
+// Bu dosyanın içinde menüye yeni link eklenmeli.
+/*
+const menuItems = [
+    // ... (diğer menü öğeleri)
+    { name: "Bildirim Tercihleri", href: "/account?tab=notifications", activeIdentifier: "notifications", isTab: true, icon: <FiBell /> },
+    { name: "Kayıtlı Kartlarım", href: "/account?tab=saved-cards", activeIdentifier: "saved-cards", isTab: true, icon: <FiCreditCard /> }, // <-- YENİ LİNK
+];
+*/

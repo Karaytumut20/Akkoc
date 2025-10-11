@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { FiGrid, FiPackage, FiHeart, FiStar, FiMapPin, FiLock, FiBell, FiLogOut, FiChevronRight } from 'react-icons/fi';
+import { FiGrid, FiPackage, FiHeart, FiStar, FiMapPin, FiLock, FiBell, FiLogOut, FiChevronRight, FiCreditCard } from 'react-icons/fi';
 import { useAppContext } from "@/context/AppContext";
 
 export default function AccountSidebar() {
@@ -18,11 +18,11 @@ export default function AccountSidebar() {
         { name: "Adreslerim", href: "/account/addresses", activeIdentifier: "/account/addresses", isTab: false, icon: <FiMapPin /> },
         { name: "Parola Güvenliği", href: "/account?tab=password", activeIdentifier: "password", isTab: true, icon: <FiLock /> },
         { name: "Bildirim Tercihleri", href: "/account?tab=notifications", activeIdentifier: "notifications", isTab: true, icon: <FiBell /> },
+        { name: "Kayıtlı Kartlarım", href: "/account?tab=saved-cards", activeIdentifier: "saved-cards", isTab: true, icon: <FiCreditCard /> } // <-- YENİ EKLENEN SATIR
     ];
     
     const activeTab = searchParams.get('tab');
 
-    // Kullanıcı bilgisi henüz yüklenmediyse null dönebiliriz.
     if (!user) {
         return null;
     }

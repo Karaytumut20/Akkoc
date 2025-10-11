@@ -30,3 +30,9 @@
     content: '';
   }
 }
+/* Yüzen etiket için placeholder'ı şeffaf yapma */
+@layer utilities {
+  .placeholder-transparent::placeholder {
+    color: transparent;
+  }
+}
