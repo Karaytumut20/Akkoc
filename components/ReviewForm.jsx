@@ -13,6 +13,7 @@ const ReviewForm = ({ productId, onReviewAdded }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!user) return toast.error('Yorum yapmak için giriş yapmalısınız.');
     if (!rating || !comment.trim()) {
       return toast.error('Lütfen puan verin ve yorumunuzu yazın.');
     }
@@ -28,22 +29,26 @@ const ReviewForm = ({ productId, onReviewAdded }) => {
 
     setLoading(false);
     if (error) {
-      toast.error('Yorum eklenirken bir hata oluştu.');
+      if (error.code === '23505') { 
+          toast.error('Bu ürüne zaten bir yorum yapmışsınız.');
+      } else {
+          toast.error('Yorum eklenirken bir hata oluştu: ' + error.message);
+      }
     } else {
       toast.success('Yorumunuz alındı ve incelendikten sonra yayınlanacak.');
       setRating(0);
       setComment('');
       if (onReviewAdded) {
-        onReviewAdded();
+        onReviewAdded(); // Yorum başarılıysa ana sayfayı yenilemek için fonksiyonu çağır.
       }
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="mb-8 p-6 bg-gray-50 rounded-lg">
-      <h3 className="text-xl font-semibold mb-4 text-gray-800">Yorum Yap</h3>
+    <form onSubmit={handleSubmit} className="mb-8 p-6 bg-gray-50 rounded-lg border">
+      <h3 className="text-xl font-semibold mb-4 text-gray-800">Ürünü Değerlendir</h3>
       <div className="mb-4">
-        <span className="text-gray-700">Puanınız:</span>
+        <span className="text-gray-700 font-medium">Puanınız:</span>
         <div className="flex items-center mt-1">
           {[...Array(5)].map((_, i) => (
             <button
@@ -53,7 +58,7 @@ const ReviewForm = ({ productId, onReviewAdded }) => {
               className="focus:outline-none"
             >
               <svg
-                className={`w-6 h-6 ${i < rating ? 'text-yellow-400' : 'text-gray-300'}`}
+                className={`w-7 h-7 transition-colors duration-200 ${i < rating ? 'text-yellow-400' : 'text-gray-300 hover:text-yellow-300'}`}
                 fill="currentColor"
                 viewBox="0 0 20 20"
               >

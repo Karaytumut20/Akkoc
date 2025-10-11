@@ -10,11 +10,12 @@ const OrderPlaced = () => {
 
   useEffect(() => {
     setTimeout(() => {
-      router.push('/my-orders')
+      router.push('/account/my-orders') // <-- BURAYI GÜNCELLEYİN
     }, 5000)
   }, [])
 
   return (
+    // ... (geri kalan kod aynı) ...
     <div className='h-screen flex flex-col justify-center items-center gap-5'>
       <div className="flex justify-center items-center relative">
         <Image className="absolute p-5" src={assets.checkmark} alt='' />

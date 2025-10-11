@@ -1,7 +1,7 @@
 // app/product/[id]/page.jsx
 
 "use client"
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import ProductCard from "@/components/ProductCard";
 import Footer from "@/components/Footer";
 import Image from "next/image";
@@ -15,10 +15,11 @@ import StarRating from "@/components/StarRating";
 import { FiChevronLeft, FiChevronRight, FiHeart } from "react-icons/fi";
 import ReviewModal from "@/components/ReviewModal";
 import toast from "react-hot-toast";
+import { getSafeImageUrl } from "@/lib/utils";
 
 const Product = () => {
     const { id } = useParams();
-    const { router, addToCart, products: allProducts, getSafeImageUrl, user, myOrders, authLoading, wishlist, addToWishlist, removeFromWishlist } = useAppContext();
+    const { router, addToCart, products: allProducts, user, myOrders, authLoading, wishlist, addToWishlist, removeFromWishlist } = useAppContext();
 
     const [productData, setProductData] = useState(null);
     const [relatedProducts, setRelatedProducts] = useState([]);
@@ -26,49 +27,70 @@ const Product = () => {
     const [reviews, setReviews] = useState([]);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [isReviewModalOpen, setReviewModalOpen] = useState(false);
-    const [hasPurchased, setHasPurchased] = useState(false);
+    
+    const [reviewEligibility, setReviewEligibility] = useState({
+        hasPurchased: false,
+        hasExistingReview: false,
+    });
 
-    // --- Veri Çekme Fonksiyonları (Değişiklik Yok) ---
-    const fetchProductData = async () => {
+    const fetchProductDetails = useCallback(async () => {
         if (!id) return;
         setLoading(true);
-        const { data, error } = await supabase.from('products').select('*, categories(name)').eq('id', id).single();
-        if (error) {
-            console.error("Ürün alınamadı:", error.message);
-            setProductData(null);
-        } else {
-            let imageUrls = [];
-            if (typeof data.image_urls === 'string') {
-                try { imageUrls = JSON.parse(data.image_urls); } catch { imageUrls = []; }
-            } else if (Array.isArray(data.image_urls)) {
-                imageUrls = data.image_urls;
-            }
-            setProductData({ ...data, image_urls: imageUrls });
+
+        const { data: productInfo, error: productError } = await supabase.from('products').select('*, categories(name)').eq('id', id).single();
+        if (productError) {
+            setLoading(false);
+            return toast.error("Ürün yüklenirken bir hata oluştu.");
         }
+        let imageUrls = [];
+        if (typeof productInfo.image_urls === 'string') {
+            try { imageUrls = JSON.parse(productInfo.image_urls); } catch { imageUrls = []; }
+        } else if (Array.isArray(productInfo.image_urls)) {
+            imageUrls = productInfo.image_urls;
+        }
+        setProductData({ ...productInfo, image_urls: imageUrls });
+        
+        const { data: approvedReviews, error: reviewsError } = await supabase.from('reviews').select('*, users(email)').eq('product_id', id).eq('is_approved', true).order('created_at', { ascending: false });
+        if (!reviewsError) setReviews(approvedReviews || []);
+        
         setLoading(false);
-    };
-
-    const fetchReviews = async () => {
-        if (!id) return;
-        const { data, error } = await supabase.from('reviews').select('*, users(email)').eq('product_id', id).eq('is_approved', true).order('created_at', { ascending: false });
-        if (!error) setReviews(data || []);
-    };
-
-    useEffect(() => {
-        fetchProductData();
-        fetchReviews();
     }, [id]);
+    
+    // YORUM YAPMA HAKKINI KONTROL EDEN GÜNCELLENMİŞ VE DOĞRU FONKSİYON
+    const checkReviewEligibility = useCallback(async () => {
+        if (authLoading || !user || !productData) {
+            setReviewEligibility({ hasPurchased: false, hasExistingReview: false });
+            return;
+        }
+
+        const purchased = myOrders.some(order => order.order_items.some(item => item.product_id === productData.id));
+
+        // *** HATA DÜZELTMESİ BURADA ***
+        // 'count'u doğrudan Supabase yanıtından alıyoruz.
+        const { count, error } = await supabase
+            .from('reviews')
+            .select('*', { count: 'exact', head: true }) // Sadece sayıyı al, datayı değil
+            .eq('product_id', productData.id)
+            .eq('user_id', user.id);
+
+        // Hata yoksa ve count null değilse (her zaman bir sayı döner) kontrol et
+        const existingReview = !error && count > 0;
+
+        setReviewEligibility({
+            hasPurchased: purchased,
+            hasExistingReview: existingReview,
+        });
+    }, [user, authLoading, productData, myOrders]);
+
 
     useEffect(() => {
-        if (authLoading) return;
-        if (user && myOrders && myOrders.length > 0 && productData) {
-            const purchased = myOrders.some(order => order.order_items.some(item => item.product_id === productData.id));
-            setHasPurchased(purchased);
-        } else {
-            setHasPurchased(false);
-        }
-    }, [user, myOrders, productData, authLoading]);
-
+        fetchProductDetails();
+    }, [id, fetchProductDetails]);
+    
+    useEffect(() => {
+        checkReviewEligibility();
+    }, [checkReviewEligibility]);
+    
     useEffect(() => {
         if (productData && allProducts.length > 0) {
             setRelatedProducts(allProducts.filter(p => p.category_id === productData.category_id && p.id !== productData.id).slice(0, 5));
@@ -84,35 +106,26 @@ const Product = () => {
             router.push('/auth');
             return;
         }
-        if (isFavorited) {
-            removeFromWishlist(productData.id);
-        } else {
-            addToWishlist(productData.id);
-        }
+        if (isFavorited) removeFromWishlist(productData.id);
+        else addToWishlist(productData.id);
     };
-
+    
     if (loading || !productData) return <Loading />;
 
     const averageRating = reviews.length > 0 ? reviews.reduce((acc, review) => acc + review.rating, 0) / reviews.length : 0;
     const mainImage = productData.image_urls[currentImageIndex] || getSafeImageUrl(productData.image_urls, 0);
-
-    const handleNextImage = () => setCurrentImageIndex((prev) => (prev + 1) % productData.image_urls.length);
-    const handlePrevImage = () => setCurrentImageIndex((prev) => (prev - 1 + productData.image_urls.length) % productData.image_urls.length);
+    const handleNextImage = () => setCurrentImageIndex((prev) => (prev + 1) % (productData.image_urls.length || 1));
+    const handlePrevImage = () => setCurrentImageIndex((prev) => (prev - 1 + (productData.image_urls.length || 1)) % (productData.image_urls.length || 1));
 
     return (
         <>
             <div className="bg-white">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12">
-                        {/* SOL TARAF: GÖRSEL GALERİ VE FAVORİ BUTONU */}
                         <div className="w-full">
                             <div className="relative w-full aspect-square rounded-lg overflow-hidden group mb-4">
                                 <Image src={mainImage} alt={productData.name} fill className="object-contain" sizes="(max-width: 1024px) 90vw, 45vw" priority />
-                                <button
-                                    onClick={handleFavoriteClick}
-                                    className="absolute top-3 right-3 z-10 p-2 bg-white rounded-full shadow-md transition-all hover:scale-110"
-                                    aria-label={isFavorited ? "Favorilerden kaldır" : "Favorilere ekle"}
-                                >
+                                <button onClick={handleFavoriteClick} className="absolute top-3 right-3 z-10 p-2 bg-white rounded-full shadow-md transition-all hover:scale-110" aria-label={isFavorited ? "Favorilerden kaldır" : "Favorilere ekle"}>
                                     <FiHeart className={`w-5 h-5 transition-all duration-300 ${isFavorited ? 'fill-red-500 text-red-500' : 'text-gray-600'}`} />
                                 </button>
                                 {productData.image_urls.length > 1 && (
@@ -130,36 +143,21 @@ const Product = () => {
                                 ))}
                             </div>
                         </div>
-
-                        {/* SAĞ TARAF: ÜRÜN BİLGİLERİ */}
                         <div className="w-full flex flex-col pt-8 lg:pt-0">
                             <h1 className="text-3xl font-serif tracking-wide text-gray-900">{productData.name}</h1>
                             <p className="text-2xl text-gray-700 mt-2">${productData.price}</p>
-                            
-                            {/* DÜZENLENMİŞ TIKLANABİLİR DEĞERLENDİRME ALANI */}
-                            <div 
-                                className="inline-flex items-center gap-3 mt-4 cursor-pointer group"
-                                onClick={() => setReviewModalOpen(true)}
-                                onKeyDown={(e) => e.key === 'Enter' && setReviewModalOpen(true)}
-                                role="button"
-                                tabIndex={0}
-                                aria-label="Değerlendirmeleri gör ve yorum yap"
-                            >
-                                {reviews.length > 0 && (
-                                    <span className="font-bold text-lg text-gray-800">{averageRating.toFixed(1)}</span>
-                                )}
+                            <div className="inline-flex items-center gap-3 mt-4 cursor-pointer group" onClick={() => setReviewModalOpen(true)} role="button" tabIndex={0} aria-label="Değerlendirmeleri gör ve yorum yap">
+                                {reviews.length > 0 && (<span className="font-bold text-lg text-gray-800">{averageRating.toFixed(1)}</span>)}
                                 <StarRating rating={averageRating} />
                                 <span className="text-gray-500 text-sm group-hover:text-gray-800 transition group-hover:underline">
                                     {reviews.length > 0 ? `${reviews.length} Değerlendirme` : "İlk değerlendirmeyi yap"}
                                 </span>
                             </div>
-
                             <div className="mt-8">
                                 <button onClick={() => addToCart(productData)} className="w-full py-4 bg-teal-600 text-white hover:bg-teal-700 transition rounded-md font-semibold text-base tracking-wider">
                                     Sepete Ekle
                                 </button>
                             </div>
-                            
                             <div className="mt-10 space-y-8">
                                 <div>
                                     <h2 className="font-semibold text-lg text-gray-800 mb-3">Ürün Açıklaması</h2>
@@ -180,9 +178,7 @@ const Product = () => {
 
                 {relatedProducts.length > 0 && (
                     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 border-t mt-16">
-                        <div className="text-center mb-10">
-                            <h2 className="text-3xl font-serif text-gray-900">İlgili Ürünler</h2>
-                        </div>
+                        <div className="text-center mb-10"><h2 className="text-3xl font-serif text-gray-900">İlgili Ürünler</h2></div>
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-6 gap-y-10 w-full">
                             {relatedProducts.map((product) => <ProductCard key={product.id} product={product} />)}
                         </div>
@@ -195,10 +191,9 @@ const Product = () => {
                 onClose={() => setReviewModalOpen(false)}
                 reviews={reviews}
                 productId={id}
-                fetchReviews={fetchReviews}
-                hasPurchased={hasPurchased}
+                onReviewSubmitted={checkReviewEligibility}
+                reviewEligibility={reviewEligibility}
             />
-
             <Footer />
         </>
     );

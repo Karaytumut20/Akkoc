@@ -31,6 +31,7 @@ export const AppContextProvider = (props) => {
     const [addresses, setAddresses] = useState([]);
     const [myOrders, setMyOrders] = useState([]);
     const [wishlist, setWishlist] = useState([]);
+    const [myReviews, setMyReviews] = useState([]); // <-- YENİ STATE
     
     const inactivityTimer = useRef(null);
 
@@ -67,6 +68,7 @@ export const AppContextProvider = (props) => {
                 setAddresses([]);
                 setMyOrders([]);
                 setWishlist([]);
+                setMyReviews([]); // <-- Çıkış yapıldığında yorumları temizle
             }
             setAuthLoading(false);
         });
@@ -172,6 +174,20 @@ export const AppContextProvider = (props) => {
         }
     };
 
+    // YENİ FONKSİYON
+    const fetchMyReviews = async (userId) => {
+        if (!userId) return;
+        const { data, error } = await supabase
+            .from('reviews')
+            .select(`*, products (id, name, image_urls)`)
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+    
+        if (!error) {
+            setMyReviews(data || []);
+        }
+    };
+
     const addToWishlist = async (productId) => {
         if (!user) return toast.error("Favorilere eklemek için giriş yapmalısınız.");
         const { error } = await supabase.from('wishlist').insert({ user_id: user.id, product_id: productId });
@@ -199,6 +215,7 @@ export const AppContextProvider = (props) => {
             fetchAddresses(user.id);
             fetchMyOrders(user.id);
             fetchWishlist(user.id);
+            fetchMyReviews(user.id); // <-- EKLENDİ
         }
     }, [user]);
 
@@ -217,12 +234,11 @@ export const AppContextProvider = (props) => {
         }
     };
     
-    // YENİ: Adres güncelleme fonksiyonu
     const updateAddress = async (addressId, addressData) => {
         if (!user) return toast.error("Adres güncellemek için giriş yapmalısınız.");
         const toastId = toast.loading("Adresiniz güncelleniyor...");
         try {
-            const { id, user_id, created_at, ...updateData } = addressData; // Değişmemesi gereken alanları çıkar
+            const { id, user_id, created_at, ...updateData } = addressData;
             const { error } = await supabase.from('addresses').update(updateData).eq('id', addressId);
             if (error) throw error;
             await fetchAddresses(user.id);
@@ -234,14 +250,13 @@ export const AppContextProvider = (props) => {
         }
     };
 
-    // YENİ: Adres silme fonksiyonu
     const deleteAddress = async (addressId) => {
         if (!user) return toast.error("Adres silmek için giriş yapmalısınız.");
         const toastId = toast.loading("Adresiniz siliniyor...");
         try {
             const { error } = await supabase.from('addresses').delete().eq('id', addressId);
             if (error) throw error;
-            setAddresses(prev => prev.filter(addr => addr.id !== addressId)); // UI'ı anında güncelle
+            setAddresses(prev => prev.filter(addr => addr.id !== addressId));
             toast.success("Adres başarıyla silindi!", { id: toastId });
         } catch (error) {
             toast.error("Adres silinirken hata: " + error.message, { id: toastId });
@@ -328,8 +343,9 @@ export const AppContextProvider = (props) => {
         currency, router, products, loading, error, fetchProducts,
         cartItems, setCartItems, addToCart, updateCartQuantity, getCartCount, getCartAmount,
         user, authLoading, signUp, signIn, signOut, updateUserPassword, updateUserData,
-        addresses, fetchAddresses, addAddress, updateAddress, deleteAddress, // <-- Fonksiyonları ekleyin
+        addresses, fetchAddresses, addAddress, updateAddress, deleteAddress,
         myOrders, fetchMyOrders,
+        myReviews, // <-- EKLENDİ
         placeOrder, getSafeImageUrl,
         wishlist, addToWishlist, removeFromWishlist,
     };
