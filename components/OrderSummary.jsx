@@ -36,7 +36,8 @@ const OrderSummary = () => {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/checkout_sessions', {
+      // ✅ DÜZELTME: API isteği için tam URL kullanılıyor.
+      const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/checkout_sessions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -55,7 +56,6 @@ const OrderSummary = () => {
       }
       
       if (url) {
-        // Sepeti burada TEMİZLEMEYİN. Kullanıcı ödemeyi tamamlamadan dönebilir.
         window.location.href = url;
       } else {
         toast.error('Ödeme sayfasına yönlendirilemedi.');
