@@ -55,8 +55,7 @@ const OrderSummary = () => {
       }
       
       if (url) {
-        // Sepeti temizle ve kullanıcıyı Stripe ödeme sayfasına yönlendir
-        setCartItems({});
+        // Sepeti burada TEMİZLEMEYİN. Kullanıcı ödemeyi tamamlamadan dönebilir.
         window.location.href = url;
       } else {
         toast.error('Ödeme sayfasına yönlendirilemedi.');

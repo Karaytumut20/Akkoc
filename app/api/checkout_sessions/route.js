@@ -13,7 +13,7 @@ export async function POST(req) {
 
     const line_items = items.map((item) => ({
       price_data: {
-        currency: 'try',
+        currency: process.env.NEXT_PUBLIC_CURRENCY || 'try', // Para birimini .env dosyasından al
         product_data: {
           name: item.product.name,
           images: item.product.image_urls && item.product.image_urls.length > 0 ? [item.product.image_urls[0]] : [],
@@ -23,7 +23,6 @@ export async function POST(req) {
       quantity: item.quantity,
     }));
 
-    // SADECE GEREKLİ BİLGİLERİ GÖNDER
     const simplifiedCart = items.map(item => ({
         productId: item.product.id,
         quantity: item.quantity,
@@ -38,7 +37,6 @@ export async function POST(req) {
       metadata: {
         userId,
         addressId,
-        // Tüm ürün objesi yerine sadece ID ve adet bilgilerini gönder
         cartItems: JSON.stringify(simplifiedCart),
       },
     });

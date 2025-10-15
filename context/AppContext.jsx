@@ -1,4 +1,4 @@
-// context/AppContext.jsx dosyasının tam hali
+// context/AppContext.jsx
 
 'use client'
 
@@ -34,7 +34,7 @@ export const AppContextProvider = (props) => {
     const [myOrders, setMyOrders] = useState([]);
     const [wishlist, setWishlist] = useState([]);
     const [myReviews, setMyReviews] = useState([]);
-    const [savedCards, setSavedCards] = useState([]); // <-- YENİ STATE
+    const [savedCards, setSavedCards] = useState([]);
 
     const inactivityTimer = useRef(null);
 
@@ -72,7 +72,7 @@ export const AppContextProvider = (props) => {
                 setMyOrders([]);
                 setWishlist([]);
                 setMyReviews([]);
-                setSavedCards([]); // <-- Çıkış yapıldığında kartları temizle
+                setSavedCards([]);
             }
             setAuthLoading(false);
         });
@@ -288,7 +288,7 @@ export const AppContextProvider = (props) => {
             fetchMyOrders(user.id);
             fetchWishlist(user.id);
             fetchMyReviews(user.id);
-            fetchSavedCards(user.id); // <-- YENİ EKLENEN SATIR
+            fetchSavedCards(user.id);
         }
     }, [user]);
 
@@ -379,37 +379,6 @@ export const AppContextProvider = (props) => {
     const getCartCount = () => Object.values(cartItems).reduce((sum, item) => sum + item.quantity, 0);
     const getCartAmount = () => Object.values(cartItems).reduce((sum, item) => sum + item.product.price * item.quantity, 0);
     
-    const placeOrder = async (addressId) => {
-        if (!user) return toast.error('Sipariş vermek için giriş yapmalısınız.');
-        if (Object.keys(cartItems).length === 0) return toast.error('Sepetiniz boş.');
-        const selectedAddress = addresses.find(addr => addr.id === addressId);
-        if (!selectedAddress) return toast.error('Lütfen bir teslimat adresi seçin.');
-
-        const toastId = toast.loading('Siparişiniz oluşturuluyor...');
-        try {
-            const { data: orderData, error: orderError } = await supabase.from('orders').insert([{ user_id: user.id, total_amount: getCartAmount(), address: selectedAddress, status: 'Hazırlanıyor' }]).select().single();
-            if (orderError) throw orderError;
-
-            const orderItems = Object.values(cartItems).map(item => ({ order_id: orderData.id, product_id: item.product.id, quantity: item.quantity, price: item.product.price }));
-            const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
-            if (itemsError) throw itemsError;
-
-            const stockUpdates = Object.values(cartItems).map(item =>
-                supabase
-                    .from('products')
-                    .update({ stock: item.product.stock - item.quantity })
-                    .eq('id', item.product.id)
-            );
-            
-            await Promise.all(stockUpdates);
-
-            setCartItems({});
-            toast.success('Siparişiniz başarıyla oluşturuldu!', { id: toastId });
-            router.push('/order-placed');
-        } catch (error) {
-            toast.error('Sipariş hatası: ' + error.message, { id: toastId });
-        }
-    };
     useEffect(() => { fetchProducts(); }, []);
 
     const value = {
@@ -421,9 +390,9 @@ export const AppContextProvider = (props) => {
         addresses, fetchAddresses, addAddress, updateAddress, deleteAddress,
         myOrders, fetchMyOrders,
         myReviews,
-        placeOrder, getSafeImageUrl,
+        getSafeImageUrl,
         wishlist, addToWishlist, removeFromWishlist,
-        savedCards, addSavedCard, deleteSavedCard // <-- YENİ DEĞERLERİ EKLE
+        savedCards, addSavedCard, deleteSavedCard
     };
 
     return <AppContext.Provider value={value}>{props.children}</AppContext.Provider>;
