@@ -6,16 +6,21 @@ import { useEffect } from 'react'
 
 const OrderPlaced = () => {
 
-  const { router } = useAppContext()
+  const { router, clearCart } = useAppContext() 
 
   useEffect(() => {
-    setTimeout(() => {
-      router.push('/account/my-orders') // <-- BURAYI GÜNCELLEYİN
+    // 1. Kural: Sepeti temizle
+    clearCart();
+    
+    // 2. Kural: Yönlendirme yap
+    const timer = setTimeout(() => {
+      router.push('/account/my-orders') 
     }, 5000)
-  }, [])
+    
+    return () => clearTimeout(timer);
+  }, [router, clearCart]) // clearCart artık sabit bir referansa sahiptir
 
   return (
-    // ... (geri kalan kod aynı) ...
     <div className='h-screen flex flex-col justify-center items-center gap-5'>
       <div className="flex justify-center items-center relative">
         <Image className="absolute p-5" src={assets.checkmark} alt='' />
