@@ -7,10 +7,11 @@ import React, { useState } from "react";
 import toast from 'react-hot-toast';
 
 const OrderSummary = () => {
-  const { currency, cartItems, updateCartQuantity, getCartCount, getCartAmount, setCartItems, placeOrder, addresses, router } = useAppContext();
+  const { currency, cartItems, user, updateCartQuantity, getCartCount, getCartAmount, setCartItems, addresses, router } = useAppContext();
   const [selectedAddress, setSelectedAddress] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("card");
   const [coupon, setCoupon] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleQuantityChange = (productId, newQuantity) => {
     if (newQuantity <= 0) {
@@ -22,12 +23,50 @@ const OrderSummary = () => {
     }
   };
 
-  const handlePlaceOrder = () => {
+  const handlePlaceOrder = async () => {
+    if (!user) {
+      toast.error("Ödeme yapmak için lütfen giriş yapın.");
+      router.push('/auth');
+      return;
+    }
     if (!selectedAddress) {
-        toast.error("Lütfen bir adres seçin!");
+        toast.error("Lütfen bir teslimat adresi seçin!");
         return;
     }
-    placeOrder(selectedAddress);
+    setLoading(true);
+
+    try {
+      const response = await fetch('/api/checkout_sessions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          items: Object.values(cartItems),
+          userId: user.id,
+          addressId: selectedAddress,
+        }),
+      });
+
+      const { url, error } = await response.json();
+
+      if (error) {
+        throw new Error(error.message);
+      }
+      
+      if (url) {
+        // Sepeti temizle ve kullanıcıyı Stripe ödeme sayfasına yönlendir
+        setCartItems({});
+        window.location.href = url;
+      } else {
+        toast.error('Ödeme sayfasına yönlendirilemedi.');
+      }
+    } catch (error) {
+      toast.error(`Bir hata oluştu: ${error.message}`);
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -77,7 +116,7 @@ const OrderSummary = () => {
       <div className="mb-6">
         <div className="flex justify-between items-center mb-2">
             <label className="block text-gray-700 font-medium">Select Address</label>
-            <button onClick={() => router.push('/add-address')} className="text-sm text-orange-600 hover:underline">Add New Address</button>
+            <button onClick={() => router.push('/account/addresses')} className="text-sm text-orange-600 hover:underline">Adres Ekle/Düzenle</button>
         </div>
         <select
           value={selectedAddress}
@@ -94,7 +133,7 @@ const OrderSummary = () => {
           )}
         </select>
       </div>
-
+      
       <div className="mb-6">
         <label className="block text-gray-700 font-medium mb-2">Payment Method</label>
         <div className="flex gap-4">
@@ -142,10 +181,10 @@ const OrderSummary = () => {
 
       <button
         onClick={handlePlaceOrder}
-        disabled={getCartCount() === 0 || !selectedAddress}
+        disabled={getCartCount() === 0 || !selectedAddress || loading}
         className="w-full mt-6 py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold rounded-2xl hover:from-orange-600 hover:to-orange-700 transition shadow-lg text-lg disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        Place Order
+        {loading ? 'Yönlendiriliyor...' : 'Şimdi Öde'}
       </button>
     </div>
   );

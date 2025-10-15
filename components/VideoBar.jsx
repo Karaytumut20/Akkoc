@@ -1,12 +1,17 @@
 'use client';
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import MainNavbar from "./MainNavbar";
 import { usePathname } from "next/navigation"; // Aktif route'u almak için
 
 export default function KnotVideoHero() {
   const pathname = usePathname(); // Şu anki sayfanın yolunu alıyoruz
   const isHomePage = pathname === "/"; // Anasayfa mı kontrolü
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Eğer anasayfadaysak video arka planlı hero gözükecek
   // Diğer sayfalarda sadece Navbar olacak
@@ -15,15 +20,17 @@ export default function KnotVideoHero() {
       {isHomePage ? (
         <section className="w-full h-screen relative overflow-hidden bg-black font-sans">
           {/* Background Video */}
-          <video
-            className="absolute top-0 left-0 w-full h-full object-cover"
-            autoPlay
-            loop
-            muted
-            playsInline
-          >
-            <source src="/assets/video.mp4" type="video/mp4" />
-          </video>
+          {isClient && (
+            <video
+              className="absolute top-0 left-0 w-full h-full object-cover"
+              autoPlay
+              loop
+              muted
+              playsInline
+            >
+              <source src="/assets/video.mp4" type="video/mp4" />
+            </video>
+          )}
 
           {/* Overlay */}
           <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px] z-10"></div>
