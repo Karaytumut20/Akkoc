@@ -124,13 +124,19 @@ export const AppContextProvider = (props) => {
         }
         const toastId = toast.loading("İşlem yürütülüyor...");
         try {
-            const { error: signInError } = await supabase.auth.signInWithPassword({
-                email: user.email,
-                password: currentPassword,
-            });
-            if (signInError) {
-                throw new Error("Mevcut parolanız hatalı.");
+            // YENİ: Supabase artık reauthentication gerektiriyor.
+            const { error: reauthError } = await supabase.auth.reauthenticate();
+            if(reauthError) {
+                // Eğer reauthentication gerekiyorsa, mevcut şifre ile tekrar giriş yapmayı deneyebiliriz.
+                const { error: signInError } = await supabase.auth.signInWithPassword({
+                    email: user.email,
+                    password: currentPassword,
+                });
+                 if (signInError) {
+                    throw new Error("Mevcut parolanız hatalı.");
+                }
             }
+
             const { error: updateError } = await supabase.auth.updateUser({
                 password: newPassword,
             });
@@ -162,6 +168,7 @@ export const AppContextProvider = (props) => {
         if (error) {
             setError(error.message); setProducts([]);
         } else {
+            // AÇIKLAMA: Artık JSON.parse'a gerek yok, veritabanından direkt dizi olarak gelmeli.
             const formattedProducts = (data || []).map(p => ({
                 ...p,
                 image_urls: Array.isArray(p.image_urls) ? p.image_urls : [],
@@ -208,45 +215,8 @@ export const AppContextProvider = (props) => {
         }
     };
 
-    const fetchSavedCards = async (userId) => {
-        if (!userId) return;
-        const { data, error } = await supabase
-            .from('saved_cards')
-            .select('*')
-            .eq('user_id', userId)
-            .order('created_at', { ascending: false });
-
-        if (!error) {
-            setSavedCards(data || []);
-        }
-    };
-    
-    const addSavedCard = async (cardData) => {
-        if (!user) return toast.error("Kart eklemek için giriş yapmalısınız.");
-        
-        const fakeToken = `tok_${Math.random().toString(36).substr(2, 14)}`;
-        const last4 = cardData.cardNumber.slice(-4);
-        const cardBrand = "visa"; 
-
-        const { error } = await supabase.from('saved_cards').insert({
-            user_id: user.id,
-            card_brand: cardBrand,
-            last4: last4,
-            exp_month: parseInt(cardData.expMonth),
-            exp_year: parseInt(cardData.expYear),
-            payment_provider_token: fakeToken,
-        });
-
-        if (error) {
-            toast.error("Kart eklenirken bir hata oluştu: " + error.message);
-            return false;
-        } else {
-            toast.success("Kart başarıyla eklendi!");
-            fetchSavedCards(user.id);
-            return true;
-        }
-    };
-
+    // AÇIKLAMA: `addSavedCard` ve `fetchSavedCards` fonksiyonları güvenlik nedeniyle kaldırıldı.
+    // Gerçek bir ödeme sağlayıcısı (Stripe vb.) entegrasyonu yaparken bu kısım yeniden yazılmalıdır.
     const deleteSavedCard = async (cardId) => {
         if (!user) return toast.error("Bu işlem için giriş yapmalısınız.");
 
@@ -288,7 +258,7 @@ export const AppContextProvider = (props) => {
             fetchMyOrders(user.id);
             fetchWishlist(user.id);
             fetchMyReviews(user.id);
-            fetchSavedCards(user.id);
+            // fetchSavedCards(user.id); // Kaldırıldı
         }
     }, [user]);
 
@@ -392,7 +362,7 @@ export const AppContextProvider = (props) => {
         myReviews,
         getSafeImageUrl,
         wishlist, addToWishlist, removeFromWishlist,
-        savedCards, addSavedCard, deleteSavedCard
+        savedCards, deleteSavedCard // `addSavedCard` kaldırıldı
     };
 
     return <AppContext.Provider value={value}>{props.children}</AppContext.Provider>;

@@ -3,7 +3,10 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 export async function POST(req) {
@@ -23,21 +26,29 @@ export async function POST(req) {
     const session = event.data.object;
     
     const { userId, addressId, cartItems } = session.metadata;
-    const simplifiedCart = JSON.parse(cartItems); // Artık bu [{productId, quantity}] şeklinde
+    const simplifiedCart = JSON.parse(cartItems);
     const totalAmount = session.amount_total / 100;
 
     try {
-      // 1. Adres bilgisini al
-      const { data: addressData, error: addressError } = await supabase
+      // DÜZELTME: Adres sorgusunu daha güvenli hale getiriyoruz.
+      // .single() yerine normal bir sorgu yapıp sonucu kontrol ediyoruz.
+      const { data: addresses, error: addressError } = await supabaseAdmin
         .from('addresses')
         .select('*')
-        .eq('id', addressId)
-        .single();
+        .eq('id', addressId);
       
-      if (addressError) throw new Error(`Adres bulunamadı: ${addressError.message}`);
+      if (addressError) {
+        throw new Error(`Adres sorgulanırken hata oluştu: ${addressError.message}`);
+      }
+      if (!addresses || addresses.length === 0) {
+        throw new Error(`Veritabanında ${addressId} ID'li adres bulunamadı.`);
+      }
+
+      // Adresi dizinin ilk elemanı olarak alıyoruz.
+      const addressData = addresses[0];
 
       // 2. 'orders' tablosuna yeni siparişi oluştur
-      const { data: orderData, error: orderError } = await supabase
+      const { data: orderData, error: orderError } = await supabaseAdmin
         .from('orders')
         .insert([{ 
             user_id: userId, 
@@ -50,9 +61,9 @@ export async function POST(req) {
       
       if (orderError) throw new Error(`Sipariş oluşturulamadı: ${orderError.message}`);
       
-      // 3. Ürün detaylarını (fiyat gibi) veritabanından çek ve 'order_items' oluştur
+      // 3. Ürün detaylarını çek ve 'order_items' oluştur
       const productIds = simplifiedCart.map(item => item.productId);
-      const { data: productsData, error: productsError } = await supabase
+      const { data: productsData, error: productsError } = await supabaseAdmin
         .from('products')
         .select('id, price, stock')
         .in('id', productIds);
@@ -61,22 +72,23 @@ export async function POST(req) {
 
       const orderItems = simplifiedCart.map(item => {
         const product = productsData.find(p => p.id === item.productId);
+        if (!product) throw new Error(`Ürün bulunamadı: ${item.productId}`);
         return {
             order_id: orderData.id,
             product_id: item.productId,
             quantity: item.quantity,
-            price: product.price, // Fiyatı doğrudan veritabanından alıyoruz
+            price: product.price,
         };
       });
 
-      const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
+      const { error: itemsError } = await supabaseAdmin.from('order_items').insert(orderItems);
       if (itemsError) throw new Error(`Sipariş ürünleri eklenemedi: ${itemsError.message}`);
 
       // 4. Stokları güncelle
       for (const item of orderItems) {
         const product = productsData.find(p => p.id === item.product_id);
         const newStock = product.stock - item.quantity;
-        await supabase
+        await supabaseAdmin
           .from('products')
           .update({ stock: newStock > 0 ? newStock : 0 })
           .eq('id', item.product_id);

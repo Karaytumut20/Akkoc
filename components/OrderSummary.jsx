@@ -36,7 +36,7 @@ const OrderSummary = () => {
     setLoading(true);
 
     try {
-      // ✅ DÜZELTME: API isteği için tam URL kullanılıyor.
+      // ✅ DÜZELTME: API isteği için tam URL kullanılıyor. Bu, canlı ortamda (deployment) hatayı önler.
       const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/checkout_sessions`, {
         method: 'POST',
         headers: {
@@ -144,7 +144,8 @@ const OrderSummary = () => {
           </button>
           <button
             onClick={() => setPaymentMethod("cash")}
-            className={`flex-1 py-3 rounded-lg font-medium transition ${paymentMethod === "cash" ? "bg-orange-500 text-white" : "bg-gray-200 text-gray-700"}`}
+            disabled // DÜZELTME: Sadece kartla ödeme aktif olduğu için bu butonu devre dışı bırakıyoruz.
+            className={`flex-1 py-3 rounded-lg font-medium transition ${paymentMethod === "cash" ? "bg-orange-500 text-white" : "bg-gray-200 text-gray-700"} disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             Cash on Delivery
           </button>

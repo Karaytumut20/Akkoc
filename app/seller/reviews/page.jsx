@@ -13,17 +13,21 @@ const ReviewsPage = () => {
 
   const fetchReviews = async () => {
     setLoading(true);
-    // DÜZELTME: Sorgu 'user:users(email)' yerine 'users(email)' olarak güncellendi.
-    const { data, error } = await supabase
-      .from('reviews')
-      .select('*, product:products(name), users(email)')
-      .order('created_at', { ascending: false });
+    
+    // YENİ: RPC fonksiyonunu çağırıyoruz
+    const { data, error } = await supabase.rpc('get_reviews_with_details');
 
     if (error) {
       toast.error('Yorumlar alınamadı: ' + error.message);
       setReviews([]);
     } else {
-      setReviews(data || []);
+      // Gelen veriyi bileşenin beklediği formata dönüştürüyoruz
+      const formattedData = data.map(review => ({
+        ...review,
+        product: { name: review.product_name },
+        users: { email: review.user_email }
+      }));
+      setReviews(formattedData || []);
     }
     setLoading(false);
   };
@@ -77,7 +81,6 @@ const ReviewsPage = () => {
               <div className="flex justify-between items-start">
                 <div>
                   <p className="font-bold text-lg text-gray-800">{review.product.name}</p>
-                  {/* DÜZELTME: 'review.user.email' yerine 'review.users.email' kullanıldı. */}
                   <p className="text-sm text-gray-500">{review.users ? review.users.email : 'Bilinmeyen Kullanıcı'}</p>
                   <div className="flex items-center mt-1">
                     {[...Array(5)].map((_, i) => (

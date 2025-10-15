@@ -57,7 +57,7 @@ const Product = () => {
     }
 
     let imageUrls = [];
-    if (typeof productInfo.image_urls === "string") {
+    if (productInfo.image_urls && typeof productInfo.image_urls === "string") {
       try {
         imageUrls = JSON.parse(productInfo.image_urls);
       } catch {
@@ -68,10 +68,11 @@ const Product = () => {
     }
 
     setProductData({ ...productInfo, image_urls: imageUrls });
-
+    
+    // DÜZELTME: Sorgu, user_id sütununu kullanarak ilişkili veriyi çekecek şekilde güncellendi.
     const { data: approvedReviews, error: reviewsError } = await supabase
       .from("reviews")
-      .select("*, users(email)")
+      .select("*, user_id(email)") 
       .eq("product_id", id)
       .eq("is_approved", true)
       .order("created_at", { ascending: false });
@@ -165,7 +166,6 @@ const Product = () => {
       <div className="bg-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 mt-0 sm:mt-4 md:mt-8 lg:mt-12">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12">
-            {/* === ANA GÖRSEL KISMI === */}
             <div className="w-full">
               <div className="relative w-full aspect-square rounded-lg overflow-hidden group mb-4 bg-gray-50">
                 <Image
@@ -209,7 +209,6 @@ const Product = () => {
                 )}
               </div>
 
-              {/* === KÜÇÜK GÖRSELLER === */}
               <div className="flex justify-center gap-3">
                 {productData.image_urls.map((image, index) => (
                   <button
@@ -233,7 +232,6 @@ const Product = () => {
               </div>
             </div>
 
-            {/* === SAĞ TARAF (ÜRÜN BİLGİLERİ) === */}
             <div className="w-full flex flex-col pt-8 lg:pt-0">
               <h1 className="text-3xl font-serif tracking-wide text-gray-900">
                 {productData.name}
