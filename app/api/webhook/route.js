@@ -1,9 +1,23 @@
+// app/api/webhook/route.js
+
+'use server'; // Next.js 13+ server component
+
 import Stripe from 'stripe';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+// STRIPE ve SUPABASE SERVICE ROLE KEY ile admin client
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error('SUPABASE_SERVICE_ROLE_KEY env variable is missing!');
+}
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY // sadece server-side kullan
+);
+
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 export async function POST(req) {
@@ -21,78 +35,86 @@ export async function POST(req) {
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
-    
     const { userId, addressId, cartItems } = session.metadata;
-    const simplifiedCart = JSON.parse(cartItems); // Artık bu [{productId, quantity}] şeklinde
+
+    // Sepetteki ürünleri parse et
+    const simplifiedCart = JSON.parse(cartItems);
     const totalAmount = session.amount_total / 100;
 
     try {
-      // 1. Adres bilgisini al
-      const { data: addressData, error: addressError } = await supabase
-        .from('addresses')
-        .select('*')
-        .eq('id', addressId)
-        .single();
-      
-      if (addressError) throw new Error(`Adres bulunamadı: ${addressError.message}`);
+      // 1️⃣ Adres bilgisi (opsiyonel: ister kullan ister null bırak)
+      let addressData = null;
+      if (addressId) {
+        const { data: addrData, error: addrError } = await supabaseAdmin
+          .from('addresses')
+          .select('*')
+          .eq('id', addressId)
+          .single();
 
-      // 2. 'orders' tablosuna yeni siparişi oluştur
-      const { data: orderData, error: orderError } = await supabase
+        if (addrError) {
+          console.warn('Adres bulunamadı, sipariş oluşturuluyor ama address null:', addrError.message);
+        } else {
+          addressData = addrData;
+        }
+      }
+
+      // 2️⃣ Siparişi oluştur
+      const { data: orderData, error: orderError } = await supabaseAdmin
         .from('orders')
-        .insert([{ 
-            user_id: userId, 
-            total_amount: totalAmount, 
-            address: addressData, 
-            status: 'Hazırlanıyor' 
+        .insert([{
+          user_id: userId,
+          total_amount: totalAmount,
+          address: addressData, // JSON veya null
+          status: 'Hazırlanıyor'
         }])
         .select()
         .single();
-      
+
       if (orderError) throw new Error(`Sipariş oluşturulamadı: ${orderError.message}`);
-      
-      // 3. Ürün detaylarını (fiyat gibi) veritabanından çek ve 'order_items' oluştur
+
+      // 3️⃣ Ürün detaylarını çek
       const productIds = simplifiedCart.map(item => item.productId);
-      const { data: productsData, error: productsError } = await supabase
+      const { data: productsData, error: productsError } = await supabaseAdmin
         .from('products')
         .select('id, price, stock')
         .in('id', productIds);
 
       if (productsError) throw new Error(`Ürün detayları alınamadı: ${productsError.message}`);
 
+      // 4️⃣ Order items ekle
       const orderItems = simplifiedCart.map(item => {
         const product = productsData.find(p => p.id === item.productId);
         return {
-            order_id: orderData.id,
-            product_id: item.productId,
-            quantity: item.quantity,
-            price: product.price, // Fiyatı doğrudan veritabanından alıyoruz
+          order_id: orderData.id,
+          product_id: item.productId,
+          quantity: item.quantity,
+          price: product.price,
         };
       });
 
-      const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
+      const { error: itemsError } = await supabaseAdmin.from('order_items').insert(orderItems);
       if (itemsError) throw new Error(`Sipariş ürünleri eklenemedi: ${itemsError.message}`);
 
-      // 4. Stokları güncelle
+      // 5️⃣ Stokları güncelle
       for (const item of orderItems) {
         const product = productsData.find(p => p.id === item.product_id);
         const newStock = product.stock - item.quantity;
-        await supabase
+        await supabaseAdmin
           .from('products')
           .update({ stock: newStock > 0 ? newStock : 0 })
           .eq('id', item.product_id);
       }
-      
-      // 5. KRİTİK: Kullanıcının veritabanındaki sepetini temizle
-      const { error: cartClearError } = await supabase
+
+      // 6️⃣ Sepeti temizle
+      const { error: cartClearError } = await supabaseAdmin
         .from('user_cart')
         .delete()
         .eq('user_id', userId);
-        
+
       if (cartClearError) {
         console.error('Sepet temizlenirken hata oluştu:', cartClearError.message);
-        // Hata fırlatmıyoruz, çünkü sipariş zaten oluşturuldu.
       }
-      
+
       console.log(`Sipariş ${orderData.id} başarıyla oluşturuldu.`);
 
     } catch (error) {
