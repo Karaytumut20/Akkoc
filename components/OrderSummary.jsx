@@ -8,7 +8,8 @@ import toast from 'react-hot-toast';
 
 const OrderSummary = () => {
   const { currency, cartItems, user, updateCartQuantity, getCartCount, getCartAmount, setCartItems, addresses, router } = useAppContext();
-  const [selectedAddress, setSelectedAddress] = useState("");
+  // selectedAddress'in başlangıç değeri boş bir string olmaya devam ediyor.
+  const [selectedAddress, setSelectedAddress] = useState(""); 
   const [paymentMethod, setPaymentMethod] = useState("card");
   const [coupon, setCoupon] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,15 +30,15 @@ const OrderSummary = () => {
       router.push('/auth');
       return;
     }
-    if (!selectedAddress) {
-        toast.error("Lütfen bir teslimat adresi seçin!");
-        return;
-    }
+    // 🛑 KULLANICININ İSTEĞİ ÜZERİNE ADRES KONTROLÜ KALDIRILDI.
+    // Artık adres seçimi yapılmasa bile ödeme adımına geçebiliriz.
     setLoading(true);
 
     try {
-      // ✅ DÜZELTME: API isteği için tam URL yerine sadece path kullanılıyor.
-      const response = await fetch('/api/checkout_sessions', {
+      // API'ye gönderilecek addressId. Kullanıcı seçmediyse boş string ("") gider.
+      const addressIdToSend = selectedAddress || "no-address-selected"; 
+      
+      const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/checkout_sessions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -45,26 +46,20 @@ const OrderSummary = () => {
         body: JSON.stringify({
           items: Object.values(cartItems),
           userId: user.id,
-          addressId: selectedAddress,
+          addressId: addressIdToSend, // API'ye gönderilir. Webhook tarafı bunu yönetecek.
         }),
       });
 
-      // Sunucudan gelen cevabın başarılı olup olmadığını kontrol et
-      if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error.message || 'Bir sunucu hatası oluştu.');
-      }
-
       const { url, error } = await response.json();
 
-      if (error) { // Bu genellikle response.ok değilse tetiklenir ama yine de kontrol edelim.
+      if (error) {
         throw new Error(error.message);
       }
       
       if (url) {
         window.location.href = url;
       } else {
-        toast.error('Ödeme sayfasına yönlendirilemedi. Lütfen tekrar deneyin.');
+        toast.error('Ödeme sayfasına yönlendirilemedi.');
       }
     } catch (error) {
       toast.error(`Bir hata oluştu: ${error.message}`);
@@ -128,13 +123,13 @@ const OrderSummary = () => {
           onChange={(e) => setSelectedAddress(e.target.value)}
           className="w-full border rounded-lg p-3 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-orange-400"
         >
-          <option value="" disabled>-- Adres seçin --</option>
+          <option value="" >-- Adres seçin (Opsiyonel) --</option>
           {addresses.length > 0 ? (
             addresses.map(addr => (
                 <option key={addr.id} value={addr.id}>{`${addr.full_name} - ${addr.area}, ${addr.city}`}</option>
             ))
           ) : (
-            <option disabled>Kayıtlı adresiniz bulunmuyor.</option>
+            <option value="" disabled>Kayıtlı adresiniz bulunmuyor.</option>
           )}
         </select>
       </div>
@@ -150,7 +145,7 @@ const OrderSummary = () => {
           </button>
           <button
             onClick={() => setPaymentMethod("cash")}
-            disabled={true} // Kapıda ödeme şimdilik devre dışı
+            disabled
             className={`flex-1 py-3 rounded-lg font-medium transition ${paymentMethod === "cash" ? "bg-orange-500 text-white" : "bg-gray-200 text-gray-700"} disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             Cash on Delivery
@@ -187,7 +182,7 @@ const OrderSummary = () => {
 
       <button
         onClick={handlePlaceOrder}
-        disabled={getCartCount() === 0 || !selectedAddress || loading}
+        disabled={getCartCount() === 0 || loading} // Adres kontrolü kaldırıldı.
         className="w-full mt-6 py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold rounded-2xl hover:from-orange-600 hover:to-orange-700 transition shadow-lg text-lg disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? 'Yönlendiriliyor...' : 'Şimdi Öde'}
