@@ -14,6 +14,7 @@ const ReviewModal = ({ isOpen, onClose, reviews, productId, onReviewSubmitted, r
 
   if (!isOpen) return null;
 
+  // Yorum yapma formunu veya ilgili bilgilendirme mesajını render eden fonksiyon
   const renderFormOrMessage = () => {
     if (authLoading) {
       return <div className="text-center text-gray-500 p-4">Yükleniyor...</div>;
@@ -27,7 +28,6 @@ const ReviewModal = ({ isOpen, onClose, reviews, productId, onReviewSubmitted, r
       );
     }
     
-    // Kural 1: Kullanıcı ürünü satın almamışsa uyar.
     if (!reviewEligibility.hasPurchased) {
         return (
             <div className="text-gray-600 bg-yellow-50 p-4 rounded-lg flex items-center gap-3">
@@ -37,7 +37,6 @@ const ReviewModal = ({ isOpen, onClose, reviews, productId, onReviewSubmitted, r
         );
     }
 
-    // Kural 2: Satın almış ama zaten bir yorumu varsa uyar.
     if (reviewEligibility.hasExistingReview) {
         return (
             <div className="text-gray-600 bg-blue-50 p-4 rounded-lg flex items-center gap-3">
@@ -47,7 +46,7 @@ const ReviewModal = ({ isOpen, onClose, reviews, productId, onReviewSubmitted, r
         );
     }
 
-    // Tüm kurallar tamamsa, yorum yapma formunu göster.
+    // Kullanıcı yorum yapabiliyorsa formu göster
     return <ReviewForm productId={productId} onReviewAdded={onReviewSubmitted} />;
   };
 
@@ -58,9 +57,19 @@ const ReviewModal = ({ isOpen, onClose, reviews, productId, onReviewSubmitted, r
           <h2 className="text-xl font-semibold text-gray-800">Ürün Değerlendirmeleri</h2>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-800 transition"><FiX className="w-6 h-6" /></button>
         </div>
+        
         <div className="overflow-y-auto p-6 space-y-6">
+          {/* Her zaman önce yorum yapma bölümünü (veya mesajını) göster */}
           {renderFormOrMessage()}
-          <ReviewList reviews={reviews} />
+
+          {/* Eğer mevcut yorum varsa, bir ayırıcı çizgi ile listeyi aşağıda göster */}
+          {reviews.length > 0 && (
+            <>
+              <div className="border-t my-6"></div>
+              <h3 className="text-lg font-semibold text-gray-800">Diğer Değerlendirmeler</h3>
+              <ReviewList reviews={reviews} />
+            </>
+          )}
         </div>
       </div>
     </div>

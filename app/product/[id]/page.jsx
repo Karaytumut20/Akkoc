@@ -34,6 +34,7 @@ const Product = () => {
   const [relatedProducts, setRelatedProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [reviews, setReviews] = useState([]);
+  const [averageRating, setAverageRating] = useState(0);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isReviewModalOpen, setReviewModalOpen] = useState(false);
   const [reviewEligibility, setReviewEligibility] = useState({
@@ -57,7 +58,7 @@ const Product = () => {
     }
 
     let imageUrls = [];
-    if (productInfo.image_urls && typeof productInfo.image_urls === "string") {
+    if (typeof productInfo.image_urls === "string") {
       try {
         imageUrls = JSON.parse(productInfo.image_urls);
       } catch {
@@ -68,16 +69,24 @@ const Product = () => {
     }
 
     setProductData({ ...productInfo, image_urls: imageUrls });
-    
-    // DÜZELTME: Sorgu, user_id sütununu kullanarak ilişkili veriyi çekecek şekilde güncellendi.
+
     const { data: approvedReviews, error: reviewsError } = await supabase
       .from("reviews")
-      .select("*, user_id(email)") 
+      .select("*, users(email)")
       .eq("product_id", id)
       .eq("is_approved", true)
       .order("created_at", { ascending: false });
 
     if (!reviewsError) setReviews(approvedReviews || []);
+
+    const { data: avgRatingData, error: avgRatingError } = await supabase.rpc(
+      "get_average_rating",
+      { p_product_id: id }
+    );
+
+    if (!avgRatingError) {
+      setAverageRating(avgRatingData);
+    }
 
     setLoading(false);
   }, [id]);
@@ -141,11 +150,6 @@ const Product = () => {
 
   if (loading || !productData) return <Loading />;
 
-  const averageRating =
-    reviews.length > 0
-      ? reviews.reduce((acc, review) => acc + review.rating, 0) / reviews.length
-      : 0;
-
   const mainImage =
     productData.image_urls[currentImageIndex] ||
     getSafeImageUrl(productData.image_urls, 0);
@@ -166,6 +170,7 @@ const Product = () => {
       <div className="bg-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 mt-0 sm:mt-4 md:mt-8 lg:mt-12">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12">
+            {/* === ANA GÖRSEL KISMI === */}
             <div className="w-full">
               <div className="relative w-full aspect-square rounded-lg overflow-hidden group mb-4 bg-gray-50">
                 <Image
@@ -209,6 +214,7 @@ const Product = () => {
                 )}
               </div>
 
+              {/* === KÜÇÜK GÖRSELLER === */}
               <div className="flex justify-center gap-3">
                 {productData.image_urls.map((image, index) => (
                   <button
@@ -232,6 +238,7 @@ const Product = () => {
               </div>
             </div>
 
+            {/* === SAĞ TARAF (ÜRÜN BİLGİLERİ) === */}
             <div className="w-full flex flex-col pt-8 lg:pt-0">
               <h1 className="text-3xl font-serif tracking-wide text-gray-900">
                 {productData.name}
