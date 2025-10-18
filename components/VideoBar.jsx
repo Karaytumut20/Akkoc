@@ -28,7 +28,7 @@ export default function KnotVideoHero() {
               muted
               playsInline
             >
-              <source src="/assets/video.mp4" type="video/mp4" />
+              <source src="/assets/video2.mp4" type="video/mp4" />
             </video>
           )}
 
